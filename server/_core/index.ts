@@ -105,7 +105,9 @@ async function startServer() {
       if (!buffer) return res.status(404).json({ error: "file missing" });
 
       res.setHeader("Content-Type", att.mimeType);
-      res.setHeader("Cache-Control", "private, max-age=86400");
+      // Receipt images are immutable per id: serve from cache and keep serving
+      // stale while revalidating — instant reopen even on a slow connection.
+      res.setHeader("Cache-Control", "private, max-age=86400, stale-while-revalidate=604800");
       res.send(buffer);
     } catch (err) {
       console.error("attachment route failed:", err);

@@ -1,7 +1,115 @@
 import { trpc } from "@/lib/trpc";
 import { useSyncExternalStore } from "react";
 import { getSyncSnapshot, subscribeSyncMetrics } from "@/lib/syncMetrics";
-import { Activity, Database, Loader2, RadioTower, Zap } from "lucide-react";
+import {
+  RATING_CLASS,
+  rateCls,
+  rateLcp,
+  rateMs,
+  subscribeWebVitals,
+  getWebVitalsSnapshot,
+  type VitalRating,
+  type WebVitalsSnapshot,
+} from "@/lib/webVitals";
+import { Activity, Database, Gauge, Loader2, RadioTower, Zap } from "lucide-react";
+
+/** Vital tile with rating color + threshold hint */
+function VitalTile({
+  label,
+  value,
+  rating,
+  threshold,
+}: {
+  label: string;
+  value: string;
+  rating: VitalRating;
+  threshold?: string;
+}) {
+  const dot =
+    rating === "good"
+      ? "bg-emerald-500"
+      : rating === "warn"
+        ? "bg-amber-500"
+        : "bg-rose-500";
+  return (
+    <div className="rounded-xl border border-border/50 bg-background/40 p-3">
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
+        <span className="truncate">{label}</span>
+      </div>
+      <div className={`text-lg font-semibold leading-tight ${RATING_CLASS[rating]}`}>{value}</div>
+      {threshold && (
+        <div className="text-[10px] text-muted-foreground mt-0.5">เกณฑ์ดี ≤ {threshold}</div>
+      )}
+    </div>
+  );
+}
+
+/** Browser-side performance monitoring — collected live in this tab */
+function PerfCard({ vitals }: { vitals: WebVitalsSnapshot }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Gauge className="w-4 h-4 text-primary" />
+          <div className="text-sm font-semibold">Performance — เบราว์เซอร์นี้</div>
+        </div>
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+          Core Web Vitals
+        </span>
+      </div>
+      <p className="text-[11px] text-muted-foreground -mt-1">
+        วัดจากการใช้งานจริงของแท็บนี้ (PerformanceObserver) — สีเขียว = อยู่ในเกณฑ์ดีตาม Google
+      </p>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        <VitalTile
+          label="LCP (paint ใหญ่สุด)"
+          value={vitals.lcp !== null ? fmtMs(vitals.lcp) : "—"}
+          rating={rateLcp(vitals.lcp)}
+          threshold="2.5 วิ"
+        />
+        <VitalTile
+          label="CLS (layout shift)"
+          value={vitals.cls !== null ? String(vitals.cls) : "—"}
+          rating={rateCls(vitals.cls)}
+          threshold="0.1"
+        />
+        <VitalTile
+          label="Input delay (INP ~)"
+          value={vitals.inputDelay !== null ? fmtMs(vitals.inputDelay) : "—"}
+          rating={rateMs(vitals.inputDelay, 200, 500)}
+          threshold="200 ms"
+        />
+        <VitalTile
+          label="TTFB"
+          value={vitals.ttfb !== null ? fmtMs(vitals.ttfb) : "—"}
+          rating={rateMs(vitals.ttfb, 800, 1800)}
+          threshold="800 ms"
+        />
+        <VitalTile
+          label="API latency เฉลี่ย"
+          value={vitals.apiAvgMs !== null ? fmtMs(vitals.apiAvgMs) : "—"}
+          rating={rateMs(vitals.apiAvgMs, 300, 1000)}
+          threshold="300 ms"
+        />
+        <VitalTile
+          label="Long tasks (>50ms)"
+          value={`${vitals.longTasks}`}
+          rating={rateMs(vitals.longTasks, 5, 20)}
+          threshold={"≤5 ครั้ง"}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <StatCard icon={<Zap className="w-4 h-4" />} label="API เรียกทั้งหมด" value={String(vitals.apiCount)} sub="ตั้งแต่เปิดแท็บ" />
+        <StatCard icon={<Activity className="w-4 h-4" />} label="API ช้าสุด" value={vitals.apiMaxMs !== null ? fmtMs(vitals.apiMaxMs) : "—"} sub="ใน 50 ครั้งล่าสุด" />
+        <StatCard icon={<Gauge className="w-4 h-4" />} label="DOMContentLoaded" value={vitals.domContentLoaded !== null ? fmtMs(vitals.domContentLoaded) : "—"} />
+        <StatCard icon={<Activity className="w-4 h-4" />} label="Blocking time รวม" value={vitals.longTaskTotalMs > 0 ? fmtMs(vitals.longTaskTotalMs) : "—"} sub="ผลรวมเกิน 50ms/task" />
+      </div>
+    </div>
+  );
+}
 
 const ENTITY_LABEL: Record<string, string> = {
   transactions: "รายการ",
@@ -47,6 +155,7 @@ function fmtTime(ts: number): string {
 export function MetricsView() {
   // ดึงค่าใหม่ทุก 5 วิ ให้เหมือน dashboard วัดผลแบบสด ๆ โดยไม่ต้องกด refresh เอง
   const cacheStats = trpc.system.cacheStats.useQuery(undefined, { refetchInterval: 5000 });
+  const vitals = useSyncExternalStore(subscribeWebVitals, getWebVitalsSnapshot) as WebVitalsSnapshot;
   const syncStats = trpc.system.syncStats.useQuery(undefined, { refetchInterval: 5000 });
   // Persisted trend (survives restarts/deploys) — refetch less often than the
   // live counters above, a few-minute-old trend chart is plenty fresh.
@@ -86,6 +195,9 @@ export function MetricsView() {
 
   return (
     <div className="space-y-4">
+      {/* Browser performance — Web Vitals + API latency (เครื่องนี้) */}
+      <PerfCard vitals={vitals} />
+
       {/* Real-time sync (SSE) — ฝั่งนี้ */}
       <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card space-y-3">
         <div className="flex items-center justify-between">

@@ -16,6 +16,9 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 function fmtDateTime(ms: number): string {
@@ -274,6 +277,9 @@ export function BotView() {
             process เมื่อไม่มีคนเข้า
           </p>
         )}
+
+        {/* Custom scheduler settings — master switch + check frequency */}
+        <SchedulerSettingsCard config={d.schedulerConfig} />
       </div>
 
       {/* Broadcast — send one message to every linked user */}
@@ -500,6 +506,107 @@ export function BotView() {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+
+/* ----------------- Scheduler settings (admin-tunable) ----------------- */
+
+const INTERVAL_PRESETS = [
+  { label: "30 วิ", seconds: 30 },
+  { label: "1 นาที", seconds: 60 },
+  { label: "5 นาที", seconds: 300 },
+  { label: "15 นาที", seconds: 900 },
+  { label: "1 ชม.", seconds: 3600 },
+];
+
+function fmtSeconds(total: number): string {
+  if (total < 60) return `${total} วินาที`;
+  if (total % 3600 === 0) return `${total / 3600} ชั่วโมง`;
+  if (total % 60 === 0) return `${total / 60} นาที`;
+  return `${Math.floor(total / 60)} นาที ${total % 60} วิ`;
+}
+
+function SchedulerSettingsCard({
+  config,
+}: {
+  config: { enabled: boolean; intervalMs: number };
+}) {
+  const utils = trpc.useUtils();
+  const [enabled, setEnabled] = useState(config.enabled);
+  const [seconds, setSeconds] = useState(Math.round(config.intervalMs / 1000));
+
+  useEffect(() => {
+    setEnabled(config.enabled);
+    setSeconds(Math.round(config.intervalMs / 1000));
+  }, [config.enabled, config.intervalMs]);
+
+  const initialSeconds = Math.round(config.intervalMs / 1000);
+  const dirty = enabled !== config.enabled || seconds !== initialSeconds;
+  const valid = Number.isFinite(seconds) && seconds >= 10 && seconds <= 86400;
+
+  const save = trpc.bot.updateSchedulerConfig.useMutation({
+    onSuccess: (res) => {
+      utils.bot.overview.invalidate();
+      toast.success("บันทึกการตั้งค่า Scheduler แล้ว");
+      setEnabled(res.schedulerConfig.enabled);
+      setSeconds(Math.round(res.schedulerConfig.intervalMs / 1000));
+    },
+    onError: (err) => toast.error(err.message || "บันทึกไม่สำเร็จ"),
+  });
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/40 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs font-medium">ตั้งค่า Scheduler</div>
+          <div className="text-[10px] text-muted-foreground">ใช้กับแจ้งเตือนอัตโนมัติของทุก user — มีผลทันทีไม่ต้อง restart</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">{enabled ? "เปิด" : "ปิด"}</span>
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs font-medium">ความถี่เช็ค (custom ได้)</Label>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {INTERVAL_PRESETS.map((preset) => (
+            <button
+              key={preset.seconds}
+              type="button"
+              onClick={() => setSeconds(preset.seconds)}
+              className={`px-2 py-1 rounded-md text-[11px] border transition-colors ${
+                seconds === preset.seconds
+                  ? "bg-primary text-primary-foreground border-transparent"
+                  : "border-border text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={10}
+            max={86400}
+            value={seconds}
+            onChange={(e) => setSeconds(Number(e.target.value))}
+            className="h-8 w-28 text-sm"
+          />
+          <span className="text-xs text-muted-foreground">วินาที ({seconds >= 10 && seconds <= 86400 ? `\u2248 ${fmtSeconds(seconds)}` : "10\u0E27\u0E34–24\u0E0A\u0E21."})</span>
+        </div>
+        {!valid && (
+          <p className="text-[11px] text-red-400">ความถี่ต้องอยู่ระหว่าง 10 วินาที – 24 ชั่วโมง</p>
+        )}
+      </div>
+
+      <Button size="sm" disabled={!dirty || !valid || save.isPending} onClick={() => save.mutate({ enabled, intervalSeconds: seconds })}>
+        {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
+        บันทึกการตั้งค่า
+      </Button>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import {
+  appConfig,
   attachments,
   botBroadcastLog,
   budgets,
@@ -511,6 +512,24 @@ export async function createAttachment(
   await db.update(attachments).set({ fileUrl }).where(eq(attachments.id, inserted.id));
   invalidateUser("transactions", row.userId);
   return inserted.id;
+}
+
+// ---------- App config (runtime key/value) ----------
+
+export async function getAppConfigValue(key: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(appConfig).where(eq(appConfig.key, key)).limit(1);
+  return rows[0]?.value ?? null;
+}
+
+export async function setAppConfigValue(key: string, value: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .insert(appConfig)
+    .values({ key, value })
+    .onConflictDoUpdate({ target: appConfig.key, set: { value, updatedAt: new Date() } });
 }
 
 export async function getAttachmentById(id: number) {

@@ -53,7 +53,7 @@ Bot ฝังอยู่ใน process ของ server เดียวกั�
 - **Timezone:** คำนวณทุกอย่างบนเวลากรุงเทพผ่าน `bangkokTime.ts`
 - **Scheduler:** `scheduler.ts` ทำงานทุก 1 นาที ยิงการแจ้งเตือนอัตโนมัติ (รายวัน/รายสัปดาห์/งบ/เป้าหมาย/custom reminder)
 
-Flow ละเอียดทั้งหมดอยู่ใน [`BOT FILES.md`](../BOT%20FILES.md)
+Flow ละเอียดทั้งหมดอยู่ใน [`BOT.md`](BOT.md)
 
 ## Data Flow สรุป
 

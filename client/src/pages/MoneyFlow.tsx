@@ -8,6 +8,12 @@ import { MetricsView } from "@/components/views/MetricsView";
 import { BotView } from "@/components/views/BotView";
 import { Button } from "@/components/ui/button";
 import {
+  LoadError,
+  SkeletonBars,
+  SkeletonRows,
+  SkeletonStatCard,
+} from "@/components/ui/skeleton";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -177,6 +183,28 @@ function useMergedCategories(): typeof CATEGORIES {
   }, [settings.data?.customCategories]);
 }
 
+/**
+ * Smooth list updates: keeps the ids currently playing their exit animation.
+ * `animateRemove(id, removeFn)` plays the CSS exit class for ~200ms, then
+ * actually removes the item and clears the id — so rows slide out instead of
+ * vanishing instantly.
+ */
+function useRemovingIds() {
+  const [removingIds, setRemovingIds] = useState<Set<number>>(new Set());
+  const animateRemove = (id: number, removeFn: () => void) => {
+    setRemovingIds((prev) => new Set(prev).add(id));
+    setTimeout(() => {
+      removeFn();
+      setRemovingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 200);
+  };
+  return { removingIds, animateRemove };
+}
+
 function MoneyFlowApp() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [, setLocation] = useLocation();
@@ -319,6 +347,10 @@ function MoneyFlowApp() {
       {/* Quick-entry summary cards */}
       <section className="relative z-10 px-3 sm:px-6 max-w-5xl mx-auto mf-fade-in">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+          {txs.isLoading
+            ? [0, 1, 2, 3].map((i) => <SkeletonStatCard key={i} />)
+            : (
+          <>
           <StatCard
             color="#22c55e"
             title="รายรับ"
@@ -366,6 +398,8 @@ function MoneyFlowApp() {
             }
             highlight={totalBalance < 0 ? "negative" : "neutral"}
           />
+          </>
+          )}
         </div>
       </section>
 
@@ -419,17 +453,65 @@ function MoneyFlowApp() {
               wishlist={wishlist.data || []}
               onAdd={openAdd}
               onNavigate={(t) => setTab(t)}
+              sections={{
+                budgets: {
+                  loading: budgets.isLoading,
+                  error: !!budgets.error && !budgets.data,
+                  retry: () => budgets.refetch(),
+                },
+                recurring: {
+                  loading: recurring.isLoading,
+                  error: !!recurring.error && !recurring.data,
+                  retry: () => recurring.refetch(),
+                },
+                goals: {
+                  loading: goals.isLoading,
+                  error: !!goals.error && !goals.data,
+                  retry: () => goals.refetch(),
+                },
+                wishlist: {
+                  loading: wishlist.isLoading,
+                  error: !!wishlist.error && !wishlist.data,
+                  retry: () => wishlist.refetch(),
+                },
+              }}
             />
           )}
-          {tab === "transactions" && (
-            <TransactionsView currency={currency} transactions={txs.data || []} onAdd={openAdd} />
-          )}
-          {tab === "budgets" && (
-            <BudgetsView currency={currency} transactions={txs.data || []} budgets={budgets.data || []} />
-          )}
-          {tab === "goals" && <GoalsView currency={currency} goals={goals.data || []} />}
-          {tab === "wishlist" && <WishlistView currency={currency} items={wishlist.data || []} />}
-          {tab === "recurring" && <RecurringView currency={currency} items={recurring.data || []} />}
+          {tab === "transactions"
+            ? txs.data
+              ? <TransactionsView currency={currency} transactions={txs.data} onAdd={openAdd} />
+              : txs.isLoading
+              ? <SkeletonRows rows={8} rowClass="h-[52px]" />
+              : <LoadError onRetry={() => txs.refetch()} />
+            : null}
+          {tab === "budgets"
+            ? budgets.data
+              ? <BudgetsView currency={currency} transactions={txs.data || []} budgets={budgets.data} />
+              : budgets.isLoading
+              ? <div className="space-y-3"><SkeletonBars bars={5} /></div>
+              : <LoadError onRetry={() => budgets.refetch()} />
+            : null}
+          {tab === "goals"
+            ? goals.data
+              ? <GoalsView currency={currency} goals={goals.data} />
+              : goals.isLoading
+              ? <SkeletonRows rows={4} rowClass="h-[72px]" />
+              : <LoadError onRetry={() => goals.refetch()} />
+            : null}
+          {tab === "wishlist"
+            ? wishlist.data
+              ? <WishlistView currency={currency} items={wishlist.data} />
+              : wishlist.isLoading
+              ? <SkeletonRows rows={5} rowClass="h-[44px]" />
+              : <LoadError onRetry={() => wishlist.refetch()} />
+            : null}
+          {tab === "recurring"
+            ? recurring.data
+              ? <RecurringView currency={currency} items={recurring.data} />
+              : recurring.isLoading
+              ? <SkeletonRows rows={4} rowClass="h-[56px]" />
+              : <LoadError onRetry={() => recurring.refetch()} />
+            : null}
           {tab === "report" && (
             <MonthlyReportView
               currency={currency}
@@ -541,6 +623,13 @@ function AnimatedBar({ pct, background }: { pct: number; background: string }) {
 
 /* ----------------- DASHBOARD ----------------- */
 
+/** Per-section async state for the dashboard cards */
+interface SectionState {
+  loading: boolean;
+  error: boolean;
+  retry: () => void;
+}
+
 function DashboardView({
   currency,
   transactions,
@@ -550,6 +639,7 @@ function DashboardView({
   wishlist,
   onAdd,
   onNavigate,
+  sections,
 }: {
   currency: string;
   transactions: any[];
@@ -559,6 +649,12 @@ function DashboardView({
   wishlist: any[];
   onAdd: (t: TxType) => void;
   onNavigate: (tab: Tab) => void;
+  sections?: {
+    budgets?: SectionState;
+    recurring?: SectionState;
+    goals?: SectionState;
+    wishlist?: SectionState;
+  };
 }) {
   const mtdExpense = transactions
     .filter((t) => t.type === "expense" && isSameMonth(Number(t.occurredAt)))
@@ -612,7 +708,11 @@ function DashboardView({
           รายจ่ายเดือนนี้ทั้งหมด: <span className="font-medium text-foreground"><AnimatedCurrency value={mtdExpense} currency={currency} colorPulse={false} /></span>
         </div>
         <div className="mt-1 space-y-3">
-          {topBudgets.length === 0 ? (
+          {sections?.budgets?.error ? (
+            <LoadError onRetry={sections.budgets.retry} />
+          ) : sections?.budgets?.loading ? (
+            <SkeletonBars bars={3} />
+          ) : topBudgets.length === 0 ? (
             <div className="text-xs text-muted-foreground">
               ยังไม่ได้ตั้งงบ — ลองไปที่แท็บ "งบ" เพื่อตั้งเพดานรายจ่าย
             </div>
@@ -662,7 +762,11 @@ function DashboardView({
           <div className="text-sm font-semibold">รายการประจำที่กำลังจะถึง</div>
           <Repeat className="w-4 h-4 text-muted-foreground" />
         </div>
-        {recurring.length === 0 ? (
+        {sections?.recurring?.error ? (
+          <LoadError onRetry={sections.recurring.retry} />
+        ) : sections?.recurring?.loading ? (
+          <SkeletonRows rows={4} rowClass="h-9" />
+        ) : recurring.length === 0 ? (
           <div className="text-xs text-muted-foreground">ยังไม่มีรายการประจำ</div>
         ) : (
           <ul className="space-y-2">
@@ -710,7 +814,11 @@ function DashboardView({
           <div className="text-sm font-semibold">เป้าหมายการออม</div>
           <Target className="w-4 h-4 text-muted-foreground" />
         </div>
-        {goals.length === 0 ? (
+        {sections?.goals?.error ? (
+          <LoadError onRetry={sections.goals.retry} />
+        ) : sections?.goals?.loading ? (
+          <SkeletonBars bars={3} />
+        ) : goals.length === 0 ? (
           <div className="text-xs text-muted-foreground">ยังไม่ได้ตั้งเป้าหมาย</div>
         ) : (
           <ul className="space-y-3">
@@ -770,7 +878,11 @@ function DashboardView({
           <div className="text-sm font-semibold">รายการที่อยากได้</div>
           <Heart className="w-4 h-4 text-muted-foreground" />
         </div>
-        {wishlist.filter((w) => !w.bought).length === 0 ? (
+        {sections?.wishlist?.error ? (
+          <LoadError onRetry={sections.wishlist.retry} />
+        ) : sections?.wishlist?.loading ? (
+          <SkeletonRows rows={4} rowClass="h-7" />
+        ) : wishlist.filter((w) => !w.bought).length === 0 ? (
           <div className="text-xs text-muted-foreground">ยังไม่มีรายการที่อยากได้</div>
         ) : (
           <ul className="space-y-2">
@@ -821,7 +933,7 @@ function TransactionsView({
   // Ids currently playing the slide-out/fade exit animation — kept out of
   // the optimistic cache update until the animation finishes so the row
   // has time to animate instead of vanishing the instant delete is confirmed.
-  const [removingIds, setRemovingIds] = useState<Set<number>>(new Set());
+  const { removingIds, animateRemove } = useRemovingIds();
   const del = trpc.transactions.remove.useMutation({
     onMutate: async ({ id }) => {
       await utils.transactions.list.cancel();
@@ -1279,15 +1391,7 @@ function TransactionsView({
                 setDeleteTx(null); // close dialog immediately
                 // Play the slide-out/fade animation on the row first, then
                 // remove it from data once the animation has finished.
-                setRemovingIds((prev) => new Set(prev).add(id));
-                setTimeout(() => {
-                  del.mutate({ id });
-                  setRemovingIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(id);
-                    return next;
-                  });
-                }, 220);
+                animateRemove(id, () => del.mutate({ id }));
               }}
             >
               {del.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ลบ"}
@@ -1443,6 +1547,7 @@ function BudgetsView({
   const _weekDay = new Date(); const _wd = _weekDay.getDay(); _weekDay.setDate(_weekDay.getDate() - _wd); _weekDay.setHours(0,0,0,0);
   const weekStart = _weekDay.getTime();
   const weekEnd = weekStart + 7 * 86400000 - 1;
+  const { removingIds: removingBudgets, animateRemove: animateRemoveBudget } = useRemovingIds();
 
   return (
     <div className="space-y-3">
@@ -1472,7 +1577,7 @@ function BudgetsView({
             const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
             const over = used > limit;
             return (
-              <div key={b.id} className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">
+              <div key={b.id} className={`rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card mf-list-item ${removingBudgets.has(b.id) ? "mf-card-removing" : ""}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold truncate">{b.category}</div>
@@ -1484,7 +1589,7 @@ function BudgetsView({
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8"
-                    onClick={() => remove.mutate({ id: b.id })}
+                    onClick={() => animateRemoveBudget(b.id, () => remove.mutate({ id: b.id }))}
                   >
                     <Trash2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
@@ -1583,6 +1688,7 @@ function BudgetsView({
 
 function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
   const utils = trpc.useUtils();
+  const { removingIds: removingGoals, animateRemove: animateRemoveGoal } = useRemovingIds();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🎯");
@@ -1681,7 +1787,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
             const target = toNumber(g.targetAmount);
             const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
             return (
-              <div key={g.id} className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">
+              <div key={g.id} className={`rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card mf-list-item ${removingGoals.has(g.id) ? "mf-card-removing" : ""}`}>
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex items-center gap-2">
                     <div className="text-2xl">{g.emoji || "🎯"}</div>
@@ -1692,7 +1798,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
                       </div>
                     </div>
                   </div>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => remove.mutate({ id: g.id })}>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => animateRemoveGoal(g.id, () => remove.mutate({ id: g.id }))}>
                     <Trash2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </div>
@@ -1812,6 +1918,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
 
 function WishlistView({ currency, items }: { currency: string; items: any[] }) {
   const utils = trpc.useUtils();
+  const { removingIds: removingWishes, animateRemove: animateRemoveWish } = useRemovingIds();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -1914,7 +2021,7 @@ function WishlistView({ currency, items }: { currency: string; items: any[] }) {
             return (
               <div
                 key={w.id}
-                className={`rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card flex items-center gap-3 transition-opacity ${bought ? "opacity-60" : ""}`}
+                className={`rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card mf-list-item flex items-center gap-3 transition-opacity ${removingWishes.has(w.id) ? "mf-card-removing" : bought ? "opacity-60" : ""}`}
               >
                 <button
                   onClick={() => toggleBought.mutate({ id: w.id })}
@@ -1935,7 +2042,7 @@ function WishlistView({ currency, items }: { currency: string; items: any[] }) {
                 <span className={`text-[11px] border rounded-full px-2 py-0.5 ${pColor(w.priority as Priority)}`}>
                   {w.priority === "high" ? "สูง" : w.priority === "medium" ? "กลาง" : "ต่ำ"}
                 </span>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => remove.mutate({ id: w.id })}>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => animateRemoveWish(w.id, () => remove.mutate({ id: w.id }))}>
                   <Trash2 className="w-4 h-4 text-muted-foreground" />
                 </Button>
               </div>
@@ -1993,6 +2100,7 @@ function WishlistView({ currency, items }: { currency: string; items: any[] }) {
 
 function RecurringView({ currency, items }: { currency: string; items: any[] }) {
   const utils = trpc.useUtils();
+  const { removingIds: removingRecurring, animateRemove: animateRemoveRecurring } = useRemovingIds();
   const CATS = useMergedCategories();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<TxType>("expense");
@@ -2097,7 +2205,7 @@ function RecurringView({ currency, items }: { currency: string; items: any[] }) 
           {items.map((r) => {
             const due = Number(r.nextDate) <= Date.now();
             return (
-              <div key={r.id} className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">
+              <div key={r.id} className={`rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card mf-list-item ${removingRecurring.has(r.id) ? "mf-card-removing" : ""}`}>
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold truncate">
@@ -2118,7 +2226,7 @@ function RecurringView({ currency, items }: { currency: string; items: any[] }) 
                   <Button size="sm" variant={due ? "default" : "outline"} className="flex-1" onClick={() => runNow.mutate({ id: r.id })}>
                     บันทึกงวดนี้
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => remove.mutate({ id: r.id })}>
+                  <Button size="icon" variant="ghost" onClick={() => animateRemoveRecurring(r.id, () => remove.mutate({ id: r.id }))}>
                     <Trash2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </div>

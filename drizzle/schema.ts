@@ -241,3 +241,11 @@ export const settings = pgTable("settings", {
 });
 export type Settings = typeof settings.$inferSelect;
 export type InsertSettings = typeof settings.$inferInsert;
+
+/** Runtime app-wide key/value config (e.g. admin-tunable scheduler settings). */
+export const appConfig = pgTable("app_config", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type AppConfig = typeof appConfig.$inferSelect;

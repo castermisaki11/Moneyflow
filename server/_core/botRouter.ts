@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getBotOverview, listLinkedTelegramChats } from "./botStats";
-import { getSchedulerStatus } from "./scheduler";
+import { getSchedulerConfig, getSchedulerStatus, setSchedulerConfig } from "./scheduler";
 import { getBotUsername, isTelegramConfigured, sendTelegramMessage } from "./telegram";
 import { adminProcedure, router } from "./trpc";
 import { insertBotBroadcastLog } from "../db";
@@ -8,14 +8,32 @@ import { insertBotBroadcastLog } from "../db";
 export const botRouter = router({
   /** Everything the admin "Bot" page needs in one round trip. */
   overview: adminProcedure.query(async () => {
-    const [stats, botUsername] = await Promise.all([getBotOverview(), getBotUsername()]);
+    const [stats, botUsername, schedulerConfig] = await Promise.all([
+      getBotOverview(),
+      getBotUsername(),
+      getSchedulerConfig(),
+    ]);
     return {
       configured: isTelegramConfigured(),
       botUsername,
       scheduler: getSchedulerStatus(),
+      schedulerConfig,
       ...stats,
     };
   }),
+
+  /** Admin-tunable scheduler settings (master switch + custom check frequency). */
+  updateSchedulerConfig: adminProcedure
+    .input(
+      z.object({
+        enabled: z.boolean().optional(),
+        intervalSeconds: z.number().int().min(10).max(86_400).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const config = await setSchedulerConfig(input);
+      return { schedulerConfig: config, status: getSchedulerStatus() };
+    }),
 
   /**
    * Sends one message to every user currently linked to Telegram. Sent in

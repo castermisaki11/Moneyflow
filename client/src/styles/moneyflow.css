@@ -44,6 +44,19 @@ html {
 .mf-list-item:nth-child(9)  { animation-delay: 0.27s; }
 .mf-list-item:nth-child(10) { animation-delay: 0.30s; }
 
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .mf-list-item,
+  .mf-list-item-removing,
+  .mf-card-removing,
+  .mf-view-enter,
+  .mf-fade-in,
+  .mf-pop {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* Smooth tab content swap */
 .mf-view-enter {
   animation: mf-fade 0.22s ease both;
@@ -57,6 +70,17 @@ html {
 .mf-list-item-removing {
   animation: mf-slide-out 0.22s ease both;
   overflow: hidden;
+}
+
+/* Grid cards (budgets/goals/wishlist/recurring): fade + shrink out smoothly.
+   No height collapse here — cards are taller than rows and collapsing would jump. */
+@keyframes mf-card-exit {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.92); }
+}
+.mf-card-removing {
+  animation: mf-card-exit 0.2s ease both;
+  pointer-events: none;
 }
 
 /* Reduce motion for accessibility */

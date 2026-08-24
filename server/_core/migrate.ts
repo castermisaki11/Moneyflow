@@ -10,6 +10,13 @@ import { sql } from "drizzle-orm";
  */
 
 const SETUP_SQL = /* sql */ `
+-- ── App config (runtime key/value, e.g. scheduler settings) ─────────────
+CREATE TABLE IF NOT EXISTS app_config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ── Types ────────────────────────────────────────────────────────────────
 DO $$ BEGIN CREATE TYPE "role"     AS ENUM ('user','admin');              EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "tx_type"  AS ENUM ('income','expense','saving'); EXCEPTION WHEN duplicate_object THEN null; END $$;

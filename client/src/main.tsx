@@ -7,7 +7,11 @@ import { httpBatchLink } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
+import { initWebVitals, trackApiLatency } from "@/lib/webVitals";
 import "./index.css";
+
+// Start collecting browser performance signals (LCP/CLS/TTFB/long tasks)
+initWebVitals();
 
 // ── Cache tuning ────────────────────────────────────────────────────────
 // Default react-query behaviour treats data as stale the instant it lands,
@@ -57,9 +61,12 @@ const trpcClient = trpc.createClient({
       url: "/api/trpc",
       transformer: superjson,
       fetch(input, init) {
+        const startedAt = performance.now();
         return globalThis.fetch(input, {
           ...(init ?? {}),
           credentials: "include",
+        }).finally(() => {
+          trackApiLatency(performance.now() - startedAt);
         });
       },
     }),

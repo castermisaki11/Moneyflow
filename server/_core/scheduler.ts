@@ -1,4 +1,4 @@
-import { listAllUsers, listBudgets, listGoals, listRecurring, listTransactions } from "../db";
+import { getAppConfigValue, listAllUsers, listBudgets, listGoals, listRecurring, listTransactions, setAppConfigValue } from "../db";
 import { bangkokParts, periodRange, type PeriodKind } from "./bangkokTime";
 import { getNotifSettings, saveNotifSettings, type CustomReminder, type NotifSettingsState } from "./notifSettings";
 import { buildPacingMessage } from "./pacing";
@@ -12,9 +12,66 @@ import {
   sendTelegramMessage,
 } from "./telegram";
 
-const CHECK_INTERVAL_MS = 60 * 1000; // 1 minute — aligned to the top of each minute (see below)
+const HEARTBEAT_MS = 5 * 1000; // how often the loop wakes up to consult the config
+const MIN_INTERVAL_MS = 10 * 1000; // custom check frequency floor (10s)
+const MAX_INTERVAL_MS = 24 * 60 * 60 * 1000; // ceiling: once a day
+const SCHEDULER_CONFIG_KEY = "scheduler";
 
 let schedulerStarted = false;
+
+// ── Runtime-tunable scheduler config (admin Bot page → app_config table) ──
+export interface SchedulerRuntimeConfig {
+  enabled: boolean; // master switch — off = no automatic checks at all
+  intervalMs: number; // how often notification checks run (custom)
+}
+
+function clampIntervalMs(ms: number): number {
+  return Math.min(MAX_INTERVAL_MS, Math.max(MIN_INTERVAL_MS, Math.round(ms)));
+}
+
+// Small in-process cache so ticks don't hit the DB every heartbeat.
+let cachedConfig: SchedulerRuntimeConfig = { enabled: true, intervalMs: 60 * 1000 };
+let configFetchedAt = 0;
+
+async function loadConfig(force = false): Promise<SchedulerRuntimeConfig> {
+  if (!force && Date.now() - configFetchedAt < 15_000) return cachedConfig;
+  try {
+    const raw = await getAppConfigValue(SCHEDULER_CONFIG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<SchedulerRuntimeConfig>;
+      cachedConfig = {
+        enabled: parsed.enabled !== false,
+        intervalMs: clampIntervalMs(parsed.intervalMs ?? 60 * 1000),
+      };
+    }
+    configFetchedAt = Date.now();
+  } catch {
+    // keep last-known values on transient DB errors
+  }
+  return cachedConfig;
+}
+
+/** Current runtime settings (admin Bot page). */
+export async function getSchedulerConfig(): Promise<SchedulerRuntimeConfig> {
+  return loadConfig();
+}
+
+/** Update runtime settings (admin Bot page). Returns the effective values. */
+export async function setSchedulerConfig(
+  patch: { enabled?: boolean; intervalSeconds?: number },
+): Promise<SchedulerRuntimeConfig> {
+  const next: SchedulerRuntimeConfig = {
+    enabled: patch.enabled ?? cachedConfig.enabled,
+    intervalMs:
+      patch.intervalSeconds !== undefined
+        ? clampIntervalMs(patch.intervalSeconds * 1000)
+        : cachedConfig.intervalMs,
+  };
+  await setAppConfigValue(SCHEDULER_CONFIG_KEY, JSON.stringify(next));
+  cachedConfig = next;
+  configFetchedAt = Date.now();
+  return next;
+}
 
 // ── Status bookkeeping, read by the admin Bot page (server/_core/botRouter.ts) ──
 // Tracked inside runNotificationChecks() itself (not the setInterval wrapper below)
@@ -35,6 +92,9 @@ export interface SchedulerStatus {
   lastRunDurationMs: number | null;
   lastRunError: string | null;
   nextScheduledTickAt: number | null;
+  /** Runtime config (admin-tunable) */
+  enabled: boolean;
+  checkIntervalMs: number;
 }
 
 /** Snapshot for the admin Bot page — is the scheduler alive, when did it last run, when's it next due. */
@@ -42,11 +102,12 @@ export function getSchedulerStatus(): SchedulerStatus {
   return {
     configured: isTelegramConfigured(),
     internalTimerRunning: schedulerStarted,
-    intervalMs: CHECK_INTERVAL_MS,
+    intervalMs: cachedConfig.intervalMs,
     lastRunAt,
-    lastRunDurationMs,
-    lastRunError,
+    lastRunDurationMs,    lastRunError,
     nextScheduledTickAt,
+    enabled: cachedConfig.enabled,
+    checkIntervalMs: cachedConfig.intervalMs,
   };
 }
 
@@ -57,31 +118,31 @@ export function startScheduler(): void {
     return;
   }
   schedulerStarted = true;
-  console.log(`[Scheduler] Notification scheduler started (every ${CHECK_INTERVAL_MS / 1000}s, aligned to :00 seconds).`);
+  console.log("[Scheduler] Heartbeat loop started (config-driven check frequency).");
 
   const tick = () => runNotificationChecks().catch((err) => console.warn("[Scheduler] run failed:", err));
 
-  // Run once immediately so reminders that are already due get flushed right away,
-  // then align every subsequent tick to the top of the minute (second 0). Without
-  // this alignment, ticks land at whatever second the server happened to boot on,
-  // e.g. a boot at 16:52:37 would forever check at :37 past each interval — so a
-  // reminder set for 17:00:00 could sit unfired until 17:05:37 (or later) instead
-  // of firing within a few seconds of 17:00:00.
+  // Run once immediately so reminders that are already due get flushed, then a
+  // lightweight heartbeat wakes up every 5s, consults the runtime config
+  // (enabled + custom interval from the admin Bot page), and only fires a full
+  // notification check when the configured interval has elapsed. This lets the
+  // admin change the frequency at runtime without restarting timers.
+  void loadConfig(true);
   tick();
-  const msUntilNextMinute = CHECK_INTERVAL_MS - (Date.now() % CHECK_INTERVAL_MS);
-  nextScheduledTickAt = Date.now() + msUntilNextMinute;
-  setTimeout(() => {
+  setInterval(async () => {
+    const cfg = await loadConfig();
+    const dueAt = (lastRunAt ?? 0) + cfg.intervalMs;
+    nextScheduledTickAt = cfg.enabled ? Math.max(dueAt, Date.now()) : null;
+    if (!cfg.enabled || Date.now() < dueAt) return;
     tick();
-    nextScheduledTickAt = Date.now() + CHECK_INTERVAL_MS;
-    setInterval(() => {
-      tick();
-      nextScheduledTickAt = Date.now() + CHECK_INTERVAL_MS;
-    }, CHECK_INTERVAL_MS);
-  }, msUntilNextMinute);
+  }, HEARTBEAT_MS);
 }
 
 export async function runNotificationChecks(): Promise<void> {
   if (!isTelegramConfigured()) return;
+  // Master switch (admin Bot page) — honored for both the internal heartbeat
+  // and external cron pings so disabling really stops everything.
+  if (!(await loadConfig()).enabled) return;
   const startedAt = Date.now();
   try {
     const users = await listAllUsers();

@@ -2,8 +2,6 @@
 
 แอปจัดการการเงินส่วนบุคคล (Personal Finance Tracker) ที่มาพร้อม **Telegram Bot** สำหรับบันทึกรายรับ–รายจ่าย สรุปยอด ตั้งงบ ตั้งเป้าหมาย และแจ้งเตือนอัตโนมัติ — ใช้งานได้ทั้งผ่านหน้าเว็บและผ่านแชท
 
-> ⚠️ **สถานะของ repository นี้:** ปัจจุบันมีเฉพาะไฟล์ config/เอกสาร (`package.json`, `components.json`, เอกสาร md) — ซอร์สโค้ดจริง (`server/`, `client/`, `drizzle/schema.ts` ฯลฯ) จากโปรเจกต์ `Moneyflowv10-fixed/` ยังไม่ถูก push เข้า repo นี้ เอกสารชุดนี้เขียนจากข้อมูลอ้างอิงใน `BOT FILES.md` และ `drizzle/README.md`
-
 ## ✨ ฟีเจอร์หลัก
 
 - **บันทึกรายรับ–รายจ่าย** — ผ่านหน้าเว็บ หรือพิมพ์ข้อความอิสระใน Telegram (bot เดาหมวดหมู่ให้อัตโนมัติ)
@@ -62,8 +60,7 @@ pnpm start
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — โครงสร้างระบบและ flow ของข้อมูล
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — Environment variables, database, workflow การพัฒนา
-- [`docs/TELEGRAM_BOT.md`](docs/TELEGRAM_BOT.md) — คำสั่งและฟีเจอร์ทั้งหมดของ bot
-- [`BOT FILES.md`](BOT FILES.md) — แผนที่ไฟล์ฝั่ง Telegram Bot (จาก source เดิม)
+- [`docs/BOT.md`](docs/BOT.md) — Telegram Bot ฉบับรวม: ฟีเจอร์ + คำสั่งทั้งหมด + แผนที่ไฟล์
 
 ## 📄 License
 
