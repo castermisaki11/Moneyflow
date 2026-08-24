@@ -411,7 +411,6 @@ function MoneyFlowApp() {
             { k: "budgets", label: "งบ", icon: <Coins className="w-4 h-4" /> },
             { k: "goals", label: "เป้าหมาย", icon: <Target className="w-4 h-4" /> },
             { k: "recurring", label: "รายการประจำ", icon: <Repeat className="w-4 h-4" /> },
-            { k: "report", label: "รายงาน", icon: <FileBarChart className="w-4 h-4" /> },
             { k: "settings", label: "ตั้งค่า", icon: <Settings className="w-4 h-4" /> },
             ...(isAdmin
               ? [
@@ -751,6 +750,21 @@ function DashboardView({
             })
           )}
         </div>
+      </div>
+
+      {/* Monthly report — compact launcher tile */}
+      <div
+        onClick={() => onNavigate("report")}
+        className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 backdrop-blur-md px-3 py-2.5 mf-card cursor-pointer transition-colors hover:bg-card hover:border-border active:scale-[0.99]"
+      >
+        <span className="w-8 h-8 shrink-0 rounded-lg bg-primary/10 text-primary grid place-items-center">
+          <FileBarChart className="w-4 h-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-semibold">รายงานรายเดือน</span>
+          <span className="block text-[11px] text-muted-foreground">สรุปยอด + กราฟแยกตามหมวด</span>
+        </span>
+        <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
       </div>
 
       {/* Recurring */}
