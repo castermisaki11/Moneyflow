@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { CATEGORIES, CURRENCIES, type TxType } from "@/lib/money";
 import { trpc } from "@/lib/trpc";
-import { Bell, BellOff, Gem, Laptop, Lock, Moon, Plus, Send, Sun, Trash2, Unlink } from "lucide-react";
+import { Bell, BellOff, ChevronRight, Database, Gem, Laptop, Lock, Moon, Plus, Send, Sun, Trash2, Unlink } from "lucide-react";
 import PinSetupDialog from "@/components/PinSetupDialog";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -85,7 +85,7 @@ const TYPE_LABELS: Record<TxType, string> = {
   saving: "ออม",
 };
 
-export function SettingsView() {
+export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
   const { mode, setMode } = useTheme();
   const utils = trpc.useUtils();
   const cur = trpc.settings.get.useQuery();
@@ -221,6 +221,22 @@ export function SettingsView() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Backup / data — full-width entry that opens its own sub-page */}
+      <button
+        type="button"
+        onClick={onOpenBackup}
+        className="md:col-span-2 rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card mf-list-item text-left flex items-center gap-3 hover:bg-card hover:border-border transition-colors cursor-pointer"
+      >
+        <span className="w-10 h-10 shrink-0 rounded-xl bg-primary/10 text-primary grid place-items-center">
+          <Database className="w-5 h-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">สำรอง & กู้คืนข้อมูล (Backup)</span>
+          <span className="block text-xs text-muted-foreground">Export รายการทั้งหมดเป็น JSON/CSV · Import ย้อนหลังเข้าบัญชี</span>
+        </span>
+        <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+      </button>
+
       {/* Currency */}
       <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">
         <div className="text-sm font-semibold mb-2">สกุลเงิน</div>

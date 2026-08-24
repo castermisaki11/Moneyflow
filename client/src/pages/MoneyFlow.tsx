@@ -320,9 +320,7 @@ function MoneyFlowApp() {
 
       {/* Header */}
       <header className="relative z-10 px-3 sm:px-6 pt-4 sm:pt-5 pb-2 sm:pb-3 max-w-5xl mx-auto flex items-center gap-2">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 grid place-items-center text-white font-bold shadow-lg shrink-0">
-          ฿
-        </div>
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-lg shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="text-base sm:text-lg font-bold mf-gradient-text truncate">MoneyFlow</div>
         </div>
@@ -414,7 +412,6 @@ function MoneyFlowApp() {
             { k: "wishlist", label: "Wishlist", icon: <Heart className="w-4 h-4" /> },
             { k: "recurring", label: "รายการประจำ", icon: <Repeat className="w-4 h-4" /> },
             { k: "report", label: "รายงาน", icon: <FileBarChart className="w-4 h-4" /> },
-            { k: "data", label: "ข้อมูล", icon: <Database className="w-4 h-4" /> },
             { k: "settings", label: "ตั้งค่า", icon: <Settings className="w-4 h-4" /> },
             ...(isAdmin
               ? [
@@ -526,9 +523,10 @@ function MoneyFlowApp() {
               goals={goals.data || []}
               wishlist={wishlist.data || []}
               recurring={recurring.data || []}
+              onBack={() => setTab("settings")}
             />
           )}
-          {tab === "settings" && <SettingsView />}
+          {tab === "settings" && <SettingsView onOpenBackup={() => setTab("data")} />}
           {tab === "users" && isAdmin && <UsersView />}
           {tab === "metrics" && isAdmin && <MetricsView />}
           {tab === "bot" && isAdmin && <BotView />}
@@ -574,9 +572,22 @@ function StatCard({
     <button
       type="button"
       onClick={onClick}
-      className="mf-stat mf-card text-left rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-2.5 sm:p-3.5 shadow-sm hover:shadow-md active:scale-[0.98] min-w-0"
+      className="group relative mf-stat mf-card text-left rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-3 sm:p-4 shadow-sm hover:shadow-lg hover:border-border active:scale-[0.98] transition-all min-w-0 overflow-hidden"
       style={{ ["--stat-color" as any]: color }}
     >
+      {/* Soft color glow bleeding from the top-right corner */}
+      <div
+        aria-hidden
+        className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl pointer-events-none transition-opacity duration-300"
+        style={{ background: color, opacity: 0.14 }}
+      />
+      {/* Thin color accent along the bottom edge */}
+      <div
+        aria-hidden
+        className="absolute inset-x-3 bottom-0 h-[2.5px] rounded-full pointer-events-none"
+        style={{ background: `linear-gradient(90deg, ${color}, transparent)` }}
+      />
+
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <span className="sm:hidden text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -586,14 +597,19 @@ function StatCard({
             {fullTitle || title}
           </span>
         </div>
+        {/* Tinted icon chip instead of a solid dot */}
         <div
-          className="stat-icon w-6 h-6 sm:w-7 sm:h-7 rounded-full grid place-items-center text-white text-xs sm:text-sm font-bold shrink-0"
-          style={{ backgroundColor: color }}
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl grid place-items-center font-bold text-xs sm:text-sm shrink-0 transition-transform duration-200 group-hover:scale-110"
+          style={{
+            backgroundColor: `${color}1f`,
+            color,
+            boxShadow: `inset 0 0 0 1px ${color}33`,
+          }}
         >
           {icon}
         </div>
       </div>
-      <div className="mt-1 sm:mt-1.5 text-base sm:text-xl font-bold truncate">
+      <div className="mt-1.5 sm:mt-2 text-base sm:text-xl font-bold truncate tabular-nums">
         <AnimatedCurrency
           value={value}
           currency={currency}
@@ -601,8 +617,8 @@ function StatCard({
         />
       </div>
       {hint && (
-        <div className="mt-0.5 text-[10px] sm:text-[11px] text-muted-foreground flex items-center gap-0.5 truncate">
-          {hint} <ChevronRight className="w-3 h-3 shrink-0" />
+        <div className="mt-1 text-[10px] sm:text-[11px] text-muted-foreground flex items-center gap-0.5 truncate">
+          {hint} <ChevronRight className="w-3 h-3 shrink-0 opacity-60 transition-transform duration-200 group-hover:translate-x-0.5" />
         </div>
       )}
     </button>

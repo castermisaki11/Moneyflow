@@ -11,19 +11,20 @@ export function Skeleton({ className }: { className?: string }) {
   return <div aria-hidden className={cn("animate-pulse rounded-md bg-muted", className)} />;
 }
 
-/** Matches StatCard layout (p-2.5 sm:p-3.5, icon circle, big number, hint line). */
+/** Matches StatCard layout (p-3 sm:p-4, tinted icon chip, big number, hint line). */
 export function SkeletonStatCard() {
   return (
     <div
       aria-hidden
-      className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-2.5 sm:p-3.5 shadow-sm min-w-0"
+      className="relative rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-3 sm:p-4 shadow-sm min-w-0 overflow-hidden"
     >
       <div className="flex items-center justify-between gap-2">
         <Skeleton className="h-3 w-14 sm:w-20" />
-        <Skeleton className="h-6 w-6 sm:h-7 sm:w-7 shrink-0 rounded-full" />
+        <Skeleton className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-xl" />
       </div>
-      <Skeleton className="mt-1 sm:mt-1.5 h-6 sm:h-7 w-24 max-w-full" />
-      <Skeleton className="mt-1.5 h-2.5 w-16" />
+      <Skeleton className="mt-1.5 sm:mt-2 h-6 sm:h-7 w-24 max-w-full" />
+      <Skeleton className="mt-1 h-2.5 w-16" />
+      <div className="absolute inset-x-3 bottom-0 h-[2.5px] rounded-full bg-muted" />
     </div>
   );
 }

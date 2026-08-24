@@ -9,7 +9,7 @@ import {
   type TxType,
 } from "@/lib/types";
 import { trpc } from "@/lib/trpc";
-import { AlertCircle, CheckCircle2, Download, FileText, Loader2, Upload } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Download, FileText, Loader2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -20,6 +20,8 @@ interface DataViewProps {
   goals: Goal[];
   wishlist: WishItem[];
   recurring: Recurring[];
+  /** Shown when the page is opened as a sub-page of Settings */
+  onBack?: () => void;
 }
 
 interface ImportPreview {
@@ -60,7 +62,7 @@ function csvCell(val: string | number | null | undefined): string {
   return s;
 }
 
-export function DataView({ currency, transactions, budgets, goals, wishlist, recurring }: DataViewProps) {
+export function DataView({ currency, transactions, budgets, goals, wishlist, recurring, onBack }: DataViewProps) {
   const utils = trpc.useUtils();
   const createTx = trpc.transactions.create.useMutation();
   const importInput = useRef<HTMLInputElement | null>(null);
@@ -229,6 +231,16 @@ export function DataView({ currency, transactions, budgets, goals, wishlist, rec
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="md:col-span-2 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          กลับไปตั้งค่า
+        </button>
+      )}
       <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">
         <div className="text-sm font-semibold mb-1">Export</div>
         <div className="text-xs text-muted-foreground mb-3">ดาวน์โหลดข้อมูลทั้งหมด (รายการ / งบ / เป้าหมาย / Wishlist / รายการประจำ)</div>
