@@ -150,7 +150,7 @@ export function SettingsView() {
     onMutate: async (vars) => {
       await utils.settings.get.cancel();
       const prev = utils.settings.get.getData();
-      utils.settings.get.setData(undefined, (old) => ({ ...(old as any), ...vars }));
+      utils.settings.get.setData(undefined, (old: unknown) => ({ ...((old ?? {}) as object), ...vars }));
       return { prev };
     },
     onError: (_err, _vars, ctx) => {

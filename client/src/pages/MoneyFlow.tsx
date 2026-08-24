@@ -869,7 +869,7 @@ function TransactionsView({
                 ...(vars.amount !== undefined && { amount: String(vars.amount) }),
                 ...(vars.category !== undefined && { category: vars.category }),
                 ...(vars.note !== undefined && { note: vars.note }),
-                ...(vars.occurredAt !== undefined && { occurredAt: BigInt(vars.occurredAt) }),
+                ...(vars.occurredAt !== undefined && { occurredAt: vars.occurredAt }),
               }
             : t,
         ),
