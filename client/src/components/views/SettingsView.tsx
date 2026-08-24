@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { CATEGORIES, CURRENCIES, type TxType } from "@/lib/money";
 import { trpc } from "@/lib/trpc";
-import { Bell, BellOff, Laptop, Lock, Moon, Plus, Send, Sun, Trash2, Unlink } from "lucide-react";
+import { Bell, BellOff, Gem, Laptop, Lock, Moon, Plus, Send, Sun, Trash2, Unlink } from "lucide-react";
 import PinSetupDialog from "@/components/PinSetupDialog";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -241,24 +241,26 @@ export function SettingsView() {
       {/* Theme */}
       <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">
         <div className="text-sm font-semibold mb-2">ธีม</div>
-        <div className="text-xs text-muted-foreground mb-3">เลือก "ตามระบบ" ให้ปรับสว่าง/มืดตามการตั้งค่ามือถืออัตโนมัติ</div>
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="text-xs text-muted-foreground mb-3">เลือก "ดำทอง" ได้ทั้งที่นี่และจากปุ่มธีมบนหัวเว็บ — "ตามระบบ" ปรับสว่าง/มืดตามเครื่องอัตโนมัติ</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {(
             [
-              { value: "light" as const, label: "สว่าง", icon: Sun },
-              { value: "dark" as const, label: "มืด", icon: Moon },
-              { value: "system" as const, label: "ตามระบบ", icon: Laptop },
+              { value: "light" as const, label: "สว่าง", icon: Sun, swatch: "bg-gradient-to-br from-white to-slate-200 border border-border" },
+              { value: "dark" as const, label: "มืด", icon: Moon, swatch: "bg-gradient-to-br from-slate-800 to-slate-950" },
+              { value: "blackgold" as const, label: "ดำทอง", icon: Gem, swatch: "bg-gradient-to-br from-yellow-300 via-amber-500 to-black ring-1 ring-amber-400/60" },
+              { value: "system" as const, label: "ตามระบบ", icon: Laptop, swatch: "bg-gradient-to-r from-white via-slate-200 to-slate-900 border border-border" },
             ]
-          ).map(({ value, label, icon: Icon }) => (
+          ).map(({ value, label, icon: Icon, swatch }) => (
             <button
               key={value}
               onClick={() => setMode && setMode(value)}
-              className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-2.5 text-xs transition-colors ${
+              className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 text-xs transition-colors ${
                 mode === value
                   ? "bg-primary text-primary-foreground border-transparent"
                   : "border-border text-muted-foreground hover:bg-accent"
               }`}
             >
+              <span className={`h-4 w-4 rounded-full shrink-0 ${swatch}`} />
               <Icon className="w-4 h-4" />
               {label}
             </button>
