@@ -137,7 +137,6 @@ type Tab =
   | "dashboard"
   | "transactions"
   | "budgets"
-  | "goals"
   | "recurring"
   | "report"
   | "data"
@@ -328,7 +327,6 @@ function MoneyFlowApp() {
             { k: "dashboard", label: "แดชบอร์ด", icon: <BarChart3 className="w-4 h-4" /> },
             { k: "transactions", label: "รายการ", icon: <ListChecks className="w-4 h-4" /> },
             { k: "budgets", label: "งบ", icon: <Coins className="w-4 h-4" /> },
-            { k: "goals", label: "เป้าหมาย", icon: <Target className="w-4 h-4" /> },
             { k: "recurring", label: "รายการประจำ", icon: <Repeat className="w-4 h-4" /> },
             { k: "settings", label: "ตั้งค่า", icon: <Settings className="w-4 h-4" /> },
             { k: "account", label: "บัญชี", icon: <CircleUserRound className="w-4 h-4" /> },
@@ -400,17 +398,9 @@ function MoneyFlowApp() {
               ? <div className="space-y-3"><SkeletonBars bars={5} /></div>
               : <LoadError onRetry={() => budgets.refetch()} />
             : null}
-          {tab === "goals"
-            ? goals.data
-              ? <GoalsView currency={currency} goals={goals.data} />
-              : goals.isLoading
-              ? <SkeletonRows rows={4} rowClass="h-[72px]" />
-              : <LoadError onRetry={() => goals.refetch()} />
-            : null}
-
           {tab === "recurring"
             ? recurring.data
-              ? <RecurringView currency={currency} items={recurring.data} />
+              ? <RecurringView currency={currency} items={recurring.data} goals={goals.data || []} />
               : recurring.isLoading
               ? <SkeletonRows rows={4} rowClass="h-[56px]" />
               : <LoadError onRetry={() => recurring.refetch()} />
@@ -747,7 +737,7 @@ function DashboardView({
 
       {/* Goals */}
       <div
-        onClick={() => onNavigate("goals")}
+        onClick={() => onNavigate("recurring")}
         className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
       >
         <div className="flex items-center justify-between mb-3">
@@ -1810,7 +1800,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
 
 /* ----------------- RECURRING ----------------- */
 
-function RecurringView({ currency, items }: { currency: string; items: any[] }) {
+function RecurringView({ currency, items, goals }: { currency: string; items: any[]; goals: any[] }) {
   const utils = trpc.useUtils();
   const { removingIds: removingRecurring, animateRemove: animateRemoveRecurring } = useRemovingIds();
   const CATS = useMergedCategories();
@@ -2033,6 +2023,15 @@ function RecurringView({ currency, items }: { currency: string; items: any[] }) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* เป้าหมาย — ย้ายมารวมไว้ในหน้ารายการประจำ โดยตีกรอบแยกชัดเจน */}
+      <div className="rounded-2xl border-2 border-primary/25 bg-card/40 backdrop-blur-md p-3 space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <Target className="w-4 h-4 text-muted-foreground" />
+          <div className="text-sm font-semibold">เป้าหมายการออม</div>
+        </div>
+        <GoalsView currency={currency} goals={goals} />
+      </div>
     </div>
   );
 }
