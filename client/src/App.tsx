@@ -69,6 +69,25 @@ function Router() {
 function App() {
   const utils = trpc.useUtils();
 
+  // Telegram Mini App: when the app is opened from inside Telegram, use the
+  // signed initData to log in automatically (server verifies it against the
+  // bot token and matches the linked account), then reload so the session
+  // cookie is picked up by the normal auth flow.
+  useEffect(() => {
+    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string; expand?: () => void } } }).Telegram?.WebApp;
+    if (!tg?.initData) return;
+    tg.expand?.();
+    fetch("/api/auth/telegram-webapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData: tg.initData }),
+    })
+      .then((r) => {
+        if (r.ok) window.location.reload();
+      })
+      .catch(() => {});
+  }, []);
+
   // ตั้ง interval เพื่อ refresh auth state ทุก 5 นาที
   // เพื่อให้ access token ถูกรีเฟรชจาก refresh token ก่อนหมดอายุ
   useEffect(() => {

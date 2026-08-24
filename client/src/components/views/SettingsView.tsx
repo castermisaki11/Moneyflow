@@ -421,18 +421,46 @@ export function SettingsView() {
             </div>
             {tgStatus.data.dailyReminderEnabled && (
               <div className="space-y-2 max-w-xs">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>เตือนตอน</span>
-                  <span className="font-medium text-foreground">{tgStatus.data.dailyReminderHour}:00 น.</span>
-                </div>
-                <Slider
-                  min={0}
-                  max={23}
-                  step={1}
-                  value={[tgStatus.data.dailyReminderHour]}
-                  onValueChange={([v]) => tgUpdateReminder.mutate({ hour: v })}
-                  className="w-full"
-                />
+                <Label className="text-xs font-medium">ความถี่</Label>
+                <Select
+                  value={tgStatus.data.dailyReminderMode === "interval" ? `interval:${tgStatus.data.dailyReminderIntervalMinutes}` : "daily"}
+                  onValueChange={(v) => {
+                    if (v === "daily") tgUpdateReminder.mutate({ mode: "daily" });
+                    else tgUpdateReminder.mutate({ mode: "interval", intervalMinutes: Number(v.split(":")[1]) });
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">รายวัน (เลือกเวลาได้)</SelectItem>
+                    <SelectItem value="interval:15">ทุก 15 นาที</SelectItem>
+                    <SelectItem value="interval:30">ทุก 30 นาที</SelectItem>
+                    <SelectItem value="interval:60">ทุก 1 ชั่วโมง</SelectItem>
+                    <SelectItem value="interval:120">ทุก 2 ชั่วโมง</SelectItem>
+                    <SelectItem value="interval:240">ทุก 4 ชั่วโมง</SelectItem>
+                  </SelectContent>
+                </Select>
+                {tgStatus.data.dailyReminderMode !== "interval" ? (
+                  <>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>เตือนตอน</span>
+                      <span className="font-medium text-foreground">{tgStatus.data.dailyReminderHour}:00 น.</span>
+                    </div>
+                    <Slider
+                      min={0}
+                      max={23}
+                      step={1}
+                      value={[tgStatus.data.dailyReminderHour]}
+                      onValueChange={([v]) => tgUpdateReminder.mutate({ hour: v })}
+                      className="w-full"
+                    />
+                  </>
+                ) : (
+                  <div className="text-[10px] text-muted-foreground">
+                    เตือนซ้ำทุกช่วงเวลา จนกว่าวันนี้จะมีรายการบันทึก — ปรับค่าอื่นได้ในแชท เช่น <code>/interval 45</code>
+                  </div>
+                )}
                 <div className="text-[10px] text-muted-foreground">จะเตือนก็ต่อเมื่อยังไม่มีรายการที่บันทึกในวันนั้นเลย</div>
               </div>
             )}

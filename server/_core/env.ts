@@ -35,6 +35,9 @@ export const ENV = {
   // GitHub Actions, ...) at that endpoint every 5-10 min to both wake the server and run the
   // check. If unset, the endpoint is open — set it in production to stop randoms from hitting it.
   cronSecret: process.env.CRON_SECRET ?? "",
+  // Public HTTPS base URL of this deployment (e.g. https://moneyflow.onrender.com).
+  // Enables the Telegram WebApp button ("🌐 เปิด MoneyFlow") in the chat.
+  publicAppUrl: process.env.PUBLIC_APP_URL ?? "",
 };
 
 /**

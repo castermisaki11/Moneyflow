@@ -17,6 +17,7 @@ import { escapeHtml, formatMoney } from "./format";
 import { getNotifSettings, saveNotifSettings, type CustomReminder } from "./notifSettings";
 import { buildPacingMessage } from "./pacing";
 import { parseReminderCommand, REMINDER_USAGE_TEXT } from "./reminderParser";
+import { handleReceiptPhoto } from "./receiptPhoto";
 
 // Re-exported so existing callers (scheduler.ts) that import these from
 // "./telegram" keep working — the implementations now live in format.ts.
@@ -70,7 +71,10 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
   }
 }
 
-export type InlineKeyboard = { text: string; callback_data: string }[][];
+export type InlineKeyboardButton =
+  | { text: string; callback_data: string }
+  | { text: string; web_app: { url: string } };
+export type InlineKeyboard = InlineKeyboardButton[][];
 
 /** Sends a message with an inline keyboard attached. Returns the new message_id (needed to edit it later), or null on failure. */
 export async function sendTelegramKeyboard(
@@ -197,6 +201,7 @@ async function setBotCommands(): Promise<void> {
           { command: "undo", description: "ลบรายการล่าสุด" },
           { command: "reminders", description: "ดูรายการเตือนทั้งหมด" },
           { command: "remind", description: "ตั้งเตือน เช่น /remind พรุ่งนี้ 9 โมง จ่ายค่าเน็ต" },
+          { command: "interval", description: "ความถี่เตือน เช่น /interval 30 หรือ /interval daily" },
         ],
       }),
     });
@@ -263,11 +268,28 @@ let pollOffset = 0;
  * No public webhook URL is required, so this works the same on any host.
  * `onLinked` is called once a valid /start <code> is matched to a user.
  */
+/** Inline keyboard row with a Telegram WebApp button (empty when PUBLIC_APP_URL is unset). */
+function webAppKeyboardRow(): InlineKeyboardButton[] {
+  if (!ENV.publicAppUrl) return [];
+  return [{ text: "\u{1F310} \u0E40\u0E1B\u0E34\u0E14 MoneyFlow", web_app: { url: ENV.publicAppUrl } }];
+}
+
+/** Registers the persistent chat menu button ("\u0E40\u0E1B\u0E34\u0E14\u0E41\u0E2D\u0E1B") so every user can launch the mini app from any chat. */
+function setupWebAppMenuButton(): void {
+  if (!ENV.publicAppUrl) return;
+  void fetch(apiUrl("setChatMenuButton"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ menu_button: { type: "web_app", text: "\u0E40\u0E1B\u0E34\u0E14\u0E41\u0E2D\u0E1B", web_app: { url: ENV.publicAppUrl } } }),
+  }).catch(() => {});
+}
+
 export function startTelegramPolling(onLinked: (userId: number, chatId: string) => Promise<void> | void): void {
   if (pollingStarted || !isTelegramConfigured()) return;
   pollingStarted = true;
   console.log("[Telegram] Long polling started.");
   void setBotCommands();
+  setupWebAppMenuButton();
 
   const scheduleNext = (delayMs = 0) => setTimeout(poll, delayMs);
 
@@ -935,6 +957,52 @@ async function handleSetReminder(chatId: string, userId: number, afterTrigger: s
 }
 
 /** /reminders — lists active custom reminders sorted by next fire time, each with a 🗑 delete button. */
+/** /interval — view or change how often the reminder fires. */
+async function handleIntervalCommand(chatId: string, userId: number, arg: string): Promise<void> {
+  const notif = await getNotifSettings(userId);
+  const mode = notif.dailyReminderMode ?? "daily";
+  const minutes = notif.dailyReminderIntervalMinutes ?? 60;
+
+  const raw = arg.trim().toLowerCase();
+  if (!raw) {
+    const current = mode === "interval"
+      ? `ทุก <b>${minutes}</b> นาที`
+      : `วันละครั้ง ตอน ${String(notif.dailyReminderHour ?? 20).padStart(2, "0")}:00 น.`;
+    await sendTelegramMessage(
+      chatId,
+      `⏰ <b>ความถี่เตือนตอนนี้:</b> ${current}\n\nเปลี่ยนได้ เช่น <code>/interval 30</code>, <code>/interval 2h</code>, <code>/interval daily</code>`,
+    );
+    return;
+  }
+
+  if (/^(daily|day|รายวัน|วันละครั้ง)$/.test(raw)) {
+    await saveNotifSettings(userId, { dailyReminderMode: "daily" });
+    await sendTelegramMessage(chatId, "✅ เปลี่ยนเป็นเตือน<b>วันละครั้ง</b>แล้ว (ดู/แก้เวลาได้ในแอป → ตั้งค่า)");
+    return;
+  }
+
+  let minutesToSet: number | null = null;
+  const mMin = raw.match(/^(\d{1,4})\s*(m|min|นาที)?$/);
+  const mHour = raw.match(/^(\d{1,2})\s*(h|hr|ชม|ชั่วโมง)$/);
+  if (mHour) minutesToSet = Number(mHour[1]) * 60;
+  else if (mMin && Number(mMin[1]) > 0) minutesToSet = Number(mMin[1]);
+
+  if (!minutesToSet || minutesToSet < 5 || minutesToSet > 1440) {
+    await sendTelegramMessage(
+      chatId,
+      "❌ รูปแบบไม่ถูกต้อง — ลอง <code>/interval 30</code>, <code>/interval 2h</code> หรือ <code>/interval daily</code>\n(ขั้นต่ำ 5 นาที, สูงสุด 24 ชั่วโมง)",
+    );
+    return;
+  }
+
+  await saveNotifSettings(userId, {
+    dailyReminderMode: "interval",
+    dailyReminderIntervalMinutes: minutesToSet,
+  });
+  const label = minutesToSet >= 60 && minutesToSet % 60 === 0 ? `${minutesToSet / 60} ชั่วโมง` : `${minutesToSet} นาที`;
+  await sendTelegramMessage(chatId, "\u2705 \u0E15\u0E31\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E17\u0E38\u0E01 <b>" + label + "</b> \u0E41\u0E25\u0E49\u0E27 (\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E40\u0E21\u0E37\u0E48\u0E2D\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23)\n\u0E01\u0E25\u0E31\u0E1A\u0E40\u0E1B\u0E47\u0E19\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E23\u0E32\u0E22\u0E27\u0E31\u0E19: <code>/interval daily</code>",);
+}
+
 async function buildRemindersView(userId: number): Promise<{ text: string; keyboard: InlineKeyboard }> {
   const notif = await getNotifSettings(userId);
   const list = [...(notif.customReminders ?? [])].sort((a, b) => a.nextAt - b.nextAt);
@@ -952,7 +1020,10 @@ async function buildRemindersView(userId: number): Promise<{ text: string; keybo
     const timeStr = `${String(bk.getUTCHours()).padStart(2, "0")}:${String(bk.getUTCMinutes()).padStart(2, "0")}`;
     lines.push(`• <b>${escapeHtml(r.text)}</b>`);
     lines.push(`　${dateStr} ${timeStr} น. • ${recurrenceLabel(r.recurrence)}`);
-    keyboard.push([{ text: `🗑 ลบ: ${r.text}`.slice(0, 60), callback_data: `delreminder:${r.id}` }]);
+    keyboard.push([
+      { text: "⏰ +10 นาที", callback_data: `snooze:${r.id}` },
+      { text: `🗑 ลบ: ${r.text}`.slice(0, 44), callback_data: `delreminder:${r.id}` },
+    ]);
   }
   return { text: lines.join("\n"), keyboard };
 }
@@ -974,6 +1045,42 @@ async function handleDeleteReminder(cq: any): Promise<void> {
   if (view.keyboard.length > 0) await editTelegramMessage(chatId, messageId, view.text, view.keyboard);
   else await editTelegramMessage(chatId, messageId, view.text, []);
   await answerCallbackQuery(cq.id, "ลบแล้ว");
+}
+
+
+/** Snooze a custom reminder by 10 minutes (\u23F0 button in /reminders). */
+async function handleSnoozeReminder(cq: any): Promise<void> {
+  const chatId: string | undefined = cq.message?.chat?.id?.toString();
+  const messageId: number | undefined = cq.message?.message_id;
+  const reminderId = cq.data.split(":")[1];
+  if (!chatId || messageId === undefined || !reminderId) return;
+  const userId = await findUserIdByTelegramChatId(chatId);
+  if (!userId) {
+    await answerCallbackQuery(cq.id, "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E40\u0E0A\u0E37\u0E48\u0E2D\u0E21\u0E15\u0E48\u0E2D\u0E1A\u0E31\u0E0D\u0E0A\u0E35");
+    return;
+  }
+  const notif = await getNotifSettings(userId);
+  const existing = (notif.customReminders ?? []).find((r) => r.id === reminderId);
+  let list;
+  if (existing) {
+    // Regular case: push next fire time back by 10 minutes.
+    list = (notif.customReminders ?? []).map((r) =>
+      r.id === reminderId ? { ...r, nextAt: Date.now() + 10 * 60 * 1000 } : r,
+    );
+  } else {
+    // "Once" reminders are dropped from the list the moment they fire.
+    // Recover the text from the reminder message itself so snooze still works.
+    const rawText: string = cq.message?.text ?? "";
+    const text = rawText.split("\n").slice(1).join(" ").trim() || "แจ้งเตือน";
+    list = [
+      ...(notif.customReminders ?? []),
+      { id: reminderId, text, nextAt: Date.now() + 10 * 60 * 1000, recurrence: "once" as const, createdAt: Date.now() },
+    ];
+  }
+  await saveNotifSettings(userId, { customReminders: list });
+  const view = await buildRemindersView(userId);
+  await editTelegramMessage(chatId, messageId, view.text, view.keyboard);
+  await answerCallbackQuery(cq.id, "\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E19\u0E44\u0E1B\u0E2D\u0E35\u0E01 10 \u0E19\u0E32\u0E17\u0E35 \u23F0");
 }
 
 /**
@@ -1231,6 +1338,17 @@ const COMMAND_HELP: Record<string, string> = {
     "สร้าง/แก้เป้าหมายได้ในแอป → เป้าหมาย",
     "เรียกด้วยคำพูดก็ได้ เช่น <code>เป้าหมายการออม</code>, <code>เป้าหมายไปถึงไหน</code>",
   ].join("\n"),
+  interval: [
+    "<b>/interval</b>",
+    "ตั้งความถี่ของการเตือน \"ยังไม่ได้บันทึกรายการ\"",
+    "",
+    "• <code>/interval 30</code> — เตือนทุก 30 นาที",
+    "• <code>/interval 2h</code> — เตือนทุก 2 ชั่วโมง",
+    "• <code>/interval daily</code> — กลับเป็นเตือนวันละครั้ง",
+    "• <code>/interval</code> — ดูค่าที่ตั้งไว้ตอนนี้",
+    "",
+    "เตือนเฉพาะเมื่อวันนี้ยังไม่มีรายการบันทึกเลย (ขั้นต่\u0E4Dา 5 นาที)",
+  ].join("\n"),
   recent: [
     "<b>/recent</b> (หรือ <b>/list</b>)",
     "รายการล่าสุด 8 รายการ",
@@ -1303,6 +1421,7 @@ async function handleUpdate(
     if (action === "delrecent") return handleDeleteRecent(cq);
     if (action === "wishtoggle") return handleWishToggle(cq);
     if (action === "delreminder") return handleDeleteReminder(cq);
+    if (action === "snooze") return handleSnoozeReminder(cq);
     if (action === "remdone") return handleReminderDone(cq);
     return handlePendingCallback(cq);
   }
@@ -1310,7 +1429,16 @@ async function handleUpdate(
   const msg = update.message;
   const text: string | undefined = msg?.text;
   const chatId: string | undefined = msg?.chat?.id?.toString();
-  if (!text || !chatId) return;
+  if (!chatId) return;
+
+  // Receipt photos (compressed "photo" or an image document) get attached
+  // to the user's most recent transaction.
+  const photoSizes = Array.isArray(msg?.photo) ? msg.photo : null;
+  const docMime: string | undefined = msg?.document?.mime_type;
+  if ((photoSizes && photoSizes.length > 0) || (docMime && docMime.startsWith("image/"))) {
+    return handleReceiptPhoto(chatId, photoSizes, msg?.document);
+  }
+  if (!text) return;
 
   // "/<command> help" — e.g. "/export help" — short-circuits straight to
   // that command's own help text, before any login check or the command's
@@ -1331,10 +1459,10 @@ async function handleUpdate(
       const userId = consumeLinkCode(code);
       if (userId) {
         await onLinked(userId, chatId);
-        await sendTelegramMessage(
-          chatId,
-          "✅ เชื่อมต่อ MoneyFlow สำเร็จแล้ว!\nตั้งแต่นี้ไปจะแจ้งเตือนงบประมาณ รายการประจำ เป้าหมายการออม และเตือนบันทึกรายการประจำวันให้ที่นี่ 🙌",
-        );
+        const waRow = webAppKeyboardRow();
+        const linkedText = "✅ เชื่อมต่อ MoneyFlow สำเร็จแล้ว!\nตั้งแต่นี้ไปจะแจ้งเตือนงบประมาณ รายการประจำ เป้าหมายการออม และเตือนบันทึกรายการประจำวันให้ที่นี่ 🙌";
+        if (waRow.length) await sendTelegramKeyboard(chatId, linkedText, [waRow]);
+        else await sendTelegramMessage(chatId, linkedText);
       } else {
         await sendTelegramMessage(
           chatId,
@@ -1358,6 +1486,7 @@ async function handleUpdate(
         "• <code>+เงินเดือน 15000</code> หรือ <code>รับเงิน 500 ค่าขนม</code> → รายรับ",
         "• <code>ออม 1000 กองทุน</code> → เงินออม",
         "• หลังบันทึกเสร็จ พิมพ์ /undo เพื่อลบรายการล่าสุดได้",
+        "• 📷 ส่งรูปสลิปเข้าแชท = แนบกับรายการล่าสุด (ดูในเว็บช่อง 📎)",
         "",
         "<b>📊 ดูข้อมูล</b>",
         "• /summary — สรุปรายรับ-รายจ่าย-เงินออม วันนี้และเดือนนี้",
@@ -1430,6 +1559,10 @@ async function handleUpdate(
     const userId = await requireUserId(chatId);
     if (!userId) return;
     await handleUndoCommand(chatId, userId);
+  } else if (text.startsWith("/interval")) {
+    const userId = await requireUserId(chatId);
+    if (!userId) return;
+    await handleIntervalCommand(chatId, userId, text.slice("/interval".length));
   } else if (text.startsWith("/reminders") || /^(รายการเตือน|เตือนอะไรบ้าง)$/.test(text.trim())) {
     const userId = await requireUserId(chatId);
     if (!userId) return;

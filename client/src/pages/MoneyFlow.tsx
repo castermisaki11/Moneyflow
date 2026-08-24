@@ -72,6 +72,7 @@ import {
   Loader2,
   LogOut,
   Moon,
+  Paperclip,
   Pencil,
   Plus,
   Repeat,
@@ -1143,6 +1144,17 @@ function TransactionsView({
                         {formatCurrency(toNumber(t.amount), currency)}
                       </div>
                     </button>
+                    {(t as any).attachmentId ? (
+                      <a
+                        href={`/api/attachments/${(t as any).attachmentId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="ดูสลิปที่แนบจาก Telegram"
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent"
+                      >
+                        <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                      </a>
+                    ) : null}
                     <Button
                       size="icon"
                       variant="ghost"

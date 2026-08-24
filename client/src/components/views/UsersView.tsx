@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { AlertTriangle, ClipboardList, Loader2, ShieldCheck, Trash2, User as UserIcon } from "lucide-react";
+import { AlertTriangle, Loader2, ShieldCheck, Trash2, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -31,12 +31,6 @@ export function UsersView() {
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string | null; email: string | null } | null>(null);
   const [confirmText, setConfirmText] = useState("");
-  const [logsTarget, setLogsTarget] = useState<{ id: number; name: string | null } | null>(null);
-
-  const reminderLogs = trpc.admin.listReminderLogs.useQuery(
-    { userId: logsTarget?.id ?? 0 },
-    { enabled: !!logsTarget },
-  );
 
   const setRole = trpc.admin.setUserRole.useMutation({
     onSuccess: () => {
@@ -134,15 +128,6 @@ export function UsersView() {
                         }
                       >
                         {isAdmin ? "ลดสิทธิ์เป็นผู้ใช้ทั่วไป" : "ตั้งเป็นแอดมิน"}
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8 shrink-0"
-                        title="ดู log เตือนความจำ"
-                        onClick={() => setLogsTarget({ id: u.id, name: u.name })}
-                      >
-                        <ClipboardList className="w-3.5 h-3.5" />
                       </Button>
                       <Button
                         size="icon"
@@ -269,47 +254,6 @@ export function UsersView() {
         </DialogContent>
       </Dialog>
 
-      {/* Reminder-completion log — history of "✅ เสร็จแล้ว" taps on this
-          user's fired custom reminders, most recent first. */}
-      <Dialog open={!!logsTarget} onOpenChange={(v) => !v && setLogsTarget(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4" />
-              Log เตือนความจำ — {logsTarget?.name || "(ไม่มีชื่อ)"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="max-h-[60vh] overflow-auto space-y-2">
-            {reminderLogs.isLoading && (
-              <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-                <Loader2 className="w-4 h-4 animate-spin mr-2" /> กำลังโหลด...
-              </div>
-            )}
-            {reminderLogs.isError && (
-              <p className="text-sm text-red-400 py-4">โหลด log ไม่สำเร็จ</p>
-            )}
-            {reminderLogs.data?.length === 0 && (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                ผู้ใช้คนนี้ยังไม่เคยกด "✅ เสร็จแล้ว" เลย
-              </p>
-            )}
-            {reminderLogs.data?.map((log) => (
-              <div key={log.id} className="rounded-lg border border-border/50 p-2.5 text-xs space-y-1">
-                <div className="font-medium">{log.reminderText}</div>
-                <div className="text-muted-foreground">เตือนเมื่อ: {fmtDate(new Date(log.firedAt))}</div>
-                <div className="text-muted-foreground">กดเสร็จเมื่อ: {fmtDate(log.completedAt)}</div>
-              </div>
-            ))}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLogsTarget(null)}>
-              ปิด
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

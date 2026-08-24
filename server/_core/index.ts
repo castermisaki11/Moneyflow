@@ -15,8 +15,12 @@ import { linkTelegramChat } from "./notifSettings";
 import { startScheduler, runNotificationChecks } from "./scheduler";
 import { ENV } from "./env";
 import { subscribeUser, registerConnection } from "./events";
-import { verifyJwt } from "./jwt";
-import { COOKIE_NAME } from "@shared/const";
+import { signJwt, signRefreshJwt, verifyJwt } from "./jwt";
+import { COOKIE_NAME, REFRESH_COOKIE_NAME, SEVEN_DAYS_MS } from "@shared/const";
+import { getSessionCookieOptions } from "./cookies";
+import { getAttachmentById } from "../db";
+import { readAttachmentFile } from "./attachmentStore";
+import { loginFromTelegramInitData } from "./telegramWebapp";
 
 async function startServer() {
   await runMigrations();
@@ -56,6 +60,58 @@ async function startServer() {
   app.use(cookieParser());
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // Telegram WebApp mini-app login: the client sends initData from
+  // window.Telegram.WebApp; we verify its signature with the bot token and,
+  // if that Telegram user has a linked MoneyFlow account, issue a normal
+  // session cookie — the app opens inside Telegram already logged in.
+  app.post("/api/auth/telegram-webapp", express.json(), async (req, res) => {
+    try {
+      const initData = String(req.body?.initData ?? "");
+      const account = await loginFromTelegramInitData(initData);
+      if (!account) return res.status(401).json({ ok: false });
+
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, await signJwt(account.moneyflowUserId), {
+        ...cookieOptions,
+        maxAge: SEVEN_DAYS_MS,
+      });
+      res.cookie(REFRESH_COOKIE_NAME, await signRefreshJwt(account.moneyflowUserId), {
+        ...cookieOptions,
+        maxAge: SEVEN_DAYS_MS,
+      });
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("telegram-webapp login failed:", err);
+      return res.status(500).json({ ok: false });
+    }
+  });
+
+  // Receipt photos sent via the Telegram bot. Authenticated: the session
+  // cookie's userId must match the attachment's owner.
+  app.get("/api/attachments/:id", async (req, res) => {
+    try {
+      const token = req.cookies?.[COOKIE_NAME];
+      const session = token ? await verifyJwt(token) : null;
+      if (!session) return res.status(401).json({ error: "unauthorized" });
+
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error: "bad id" });
+
+      const att = await getAttachmentById(id);
+      if (!att || att.userId !== session.userId) return res.status(404).json({ error: "not found" });
+
+      const buffer = await readAttachmentFile(att.fileKey);
+      if (!buffer) return res.status(404).json({ error: "file missing" });
+
+      res.setHeader("Content-Type", att.mimeType);
+      res.setHeader("Cache-Control", "private, max-age=86400");
+      res.send(buffer);
+    } catch (err) {
+      console.error("attachment route failed:", err);
+      res.status(500).json({ error: "internal" });
+    }
+  });
 
   // External-cron wake/check endpoint. On hosts that idle the process when no traffic
   // arrives (e.g. Render free tier), the in-process setInterval scheduler pauses along

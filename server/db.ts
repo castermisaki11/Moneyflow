@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import {
   attachments,
   botBroadcastLog,
@@ -9,6 +9,7 @@ import {
   InsertBudget,
   InsertCategoryFeedback,
   InsertGoal,
+  InsertAttachment,
   InsertRecurring,
   InsertReminderLog,
   InsertSettings,
@@ -196,7 +197,15 @@ export async function listTransactions(userId: number, params?: {
         .where(and(...where))
         .orderBy(desc(transactions.occurredAt));
       const rows = params?.limit ? await q.limit(params.limit) : await q;
-      return rows;
+      if (rows.length === 0) return [];
+      // Attach receipt-photo info (sent via Telegram) so the web UI can show a 📎.
+      const atts = await db
+        .select({ id: attachments.id, transactionId: attachments.transactionId })
+        .from(attachments)
+        .where(inArray(attachments.transactionId, rows.map((r) => r.id)));
+      const byTx = new Map<number, number>();
+      for (const a of atts) if (!byTx.has(a.transactionId)) byTx.set(a.transactionId, a.id);
+      return rows.map((r) => ({ ...r, attachmentId: byTx.get(r.id) ?? null }));
     },
   );
 }
@@ -484,5 +493,30 @@ export async function listBotBroadcastLogs(limit = 10) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(botBroadcastLog).orderBy(desc(botBroadcastLog.createdAt)).limit(limit);
+}
+
+// ---------- Attachments (receipt photos sent via Telegram) ----------
+
+export async function createAttachment(
+  row: Omit<InsertAttachment, "fileUrl">,
+): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [inserted] = await db
+    .insert(attachments)
+    .values({ ...row, fileUrl: "" })
+    .returning({ id: attachments.id });
+  if (!inserted) return null;
+  const fileUrl = `/api/attachments/${inserted.id}`;
+  await db.update(attachments).set({ fileUrl }).where(eq(attachments.id, inserted.id));
+  invalidateUser("transactions", row.userId);
+  return inserted.id;
+}
+
+export async function getAttachmentById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(attachments).where(eq(attachments.id, id)).limit(1);
+  return rows[0] ?? null;
 }
 

@@ -112,20 +112,39 @@ async function checkUser(userId: number, dateStr: string, hour: number, dow: num
   const state = { ...(notif._state ?? {}) };
   let dirty = false;
 
-  // ── 1) Daily "did you record anything today?" reminder ──────────────
-  const reminderHour = notif.dailyReminderHour ?? 20;
+  // ── 1) "Did you record anything today?" reminder ────────────────────
+  // Two modes: classic once-per-day at a fixed hour, or every N minutes
+  // while today still has zero transactions (user-configurable).
   const reminderEnabled = notif.dailyReminderEnabled !== false;
-  if (reminderEnabled && hour >= reminderHour && state.lastDailyReminderDate !== dateStr) {
-    const { from, to } = periodRange("daily");
-    const todaysTx = await listTransactions(userId, { from, to, limit: 1 });
-    if (todaysTx.length === 0) {
-      await sendTelegramMessage(
-        chatId,
-        "🌙 <b>วันนี้ยังไม่ได้บันทึกรายการเลยนะ</b>\nอย่าลืมบันทึกรายรับ-รายจ่ายก่อนนอน จะได้ไม่ลืมย้อนหลัง 💸",
-      );
+  if (reminderEnabled && notif.dailyReminderMode === "interval") {
+    const intervalMs = Math.max(5, notif.dailyReminderIntervalMinutes ?? 60) * 60 * 1000;
+    const lastAt = state.lastIntervalReminderAt ?? 0;
+    if (Date.now() - lastAt >= intervalMs) {
+      const { from, to } = periodRange("daily");
+      const todaysTx = await listTransactions(userId, { from, to, limit: 1 });
+      if (todaysTx.length === 0) {
+        await sendTelegramMessage(
+          chatId,
+          `⏰ <b>ยังไม่ได้บันทึกรายการวันนี้เลยนะ</b> (เตือนทุก ${Math.max(5, notif.dailyReminderIntervalMinutes ?? 60)} นาที)\nพิมพ์ /interval daily เพื่อเปลี่ยนกลับเป็นเตือนรายวัน`,
+        );
+      }
+      state.lastIntervalReminderAt = Date.now();
+      dirty = true;
     }
-    state.lastDailyReminderDate = dateStr;
-    dirty = true;
+  } else if (reminderEnabled) {
+    const reminderHour = notif.dailyReminderHour ?? 20;
+    if (hour >= reminderHour && state.lastDailyReminderDate !== dateStr) {
+      const { from, to } = periodRange("daily");
+      const todaysTx = await listTransactions(userId, { from, to, limit: 1 });
+      if (todaysTx.length === 0) {
+        await sendTelegramMessage(
+          chatId,
+          "🌙 <b>วันนี้ยังไม่ได้บันทึกรายการเลยนะ</b>\nอย่าลืมบันทึกรายรับ-รายจ่ายก่อนนอน จะได้ไม่ลืมย้อนหลัง 💸",
+        );
+      }
+      state.lastDailyReminderDate = dateStr;
+      dirty = true;
+    }
   }
 
   // ── 2) Budget usage alert ─────────────────────────────────────────
@@ -249,6 +268,7 @@ async function checkUser(userId: number, dateStr: string, hour: number, dow: num
       const firedAt = Date.now();
       await sendTelegramKeyboard(chatId, `🔔 <b>เตือนความจำ</b>\n${escapeHtml(r.text)}`, [
         [{ text: "✅ เสร็จแล้ว", callback_data: `remdone:${r.id}:${firedAt}` }],
+        [{ text: "⏰ เตือนอีกที 10 นาที", callback_data: `snooze:${r.id}` }],
       ]);
       remindersChanged = true;
       if (r.recurrence === "once") continue; // fired once — drop it

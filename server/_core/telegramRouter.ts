@@ -16,6 +16,8 @@ export const telegramRouter = router({
       linkedAt: notif.telegramLinkedAt ?? null,
       dailyReminderEnabled: notif.dailyReminderEnabled !== false,
       dailyReminderHour: notif.dailyReminderHour ?? 20,
+      dailyReminderMode: notif.dailyReminderMode ?? "daily",
+      dailyReminderIntervalMinutes: notif.dailyReminderIntervalMinutes ?? 60,
       dailyPacingEnabled: notif.dailyPacingEnabled === true,
       dailyPacingHour: notif.dailyPacingHour ?? 9,
       weeklySummaryEnabled: notif.weeklySummaryEnabled !== false,
@@ -57,16 +59,22 @@ export const telegramRouter = router({
       z.object({
         enabled: z.boolean().optional(),
         hour: z.number().min(0).max(23).optional(),
+        mode: z.enum(["daily", "interval"]).optional(),
+        intervalMinutes: z.number().int().min(5).max(1440).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const patch: Partial<NotifSettingsState> = {};
       if (input.enabled !== undefined) patch.dailyReminderEnabled = input.enabled;
       if (input.hour !== undefined) patch.dailyReminderHour = input.hour;
+      if (input.mode !== undefined) patch.dailyReminderMode = input.mode;
+      if (input.intervalMinutes !== undefined) patch.dailyReminderIntervalMinutes = input.intervalMinutes;
       const merged = await saveNotifSettings(ctx.user.id, patch);
       return {
         dailyReminderEnabled: merged.dailyReminderEnabled !== false,
         dailyReminderHour: merged.dailyReminderHour ?? 20,
+        dailyReminderMode: merged.dailyReminderMode ?? "daily",
+        dailyReminderIntervalMinutes: merged.dailyReminderIntervalMinutes ?? 60,
       };
     }),
 

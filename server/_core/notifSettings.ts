@@ -30,6 +30,10 @@ export interface NotifSettingsState {
   telegramLinkedAt?: number;
   dailyReminderEnabled?: boolean; // default true once linked
   dailyReminderHour?: number; // 0-23, Asia/Bangkok local hour, default 20
+  // "เตือนบันทึกรายการ" frequency: once per day at dailyReminderHour (default),
+  // or every N minutes while today still has zero transactions.
+  dailyReminderMode?: "daily" | "interval"; // default "daily"
+  dailyReminderIntervalMinutes?: number; // min 5 (scheduler ticks per minute), default 60
 
   // Opt-in daily "budget left ÷ days left in month" push. Off by default —
   // unlike the other three alert types this one is purely informational,
@@ -52,6 +56,7 @@ export interface NotifSettingsState {
   // alert every tick. Not surfaced in the Settings UI.
   _state?: {
     lastDailyReminderDate?: string; // YYYY-MM-DD (Asia/Bangkok)
+    lastIntervalReminderAt?: number; // epoch ms of last interval-mode reminder
     lastPacingDate?: string; // YYYY-MM-DD (Asia/Bangkok)
     lastWeeklySummaryWeek?: string; // YYYY-MM-DD (Asia/Bangkok) of that week's Monday
     notifiedBudgets?: Record<string, { date: string; over: boolean }>; // budgetId -> last notified tier (date + whether it was the "over 100%" alert)
