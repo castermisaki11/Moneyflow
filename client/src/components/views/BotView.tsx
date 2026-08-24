@@ -472,7 +472,7 @@ export function BotView() {
         </div>
 
         {d.reminderCompletions.recent.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-2 text-center">ยังไม่มีใครกด "✅ เสร็จแล้ว" เลย</p>
+          <p className="text-xs text-muted-foreground py-2 text-center">ยังไม่มีใครกด "เสร็จแล้ว" เลย</p>
         ) : (
           <div className="space-y-1.5">
             {d.reminderCompletions.recent.map((r, i) => (

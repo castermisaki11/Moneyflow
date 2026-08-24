@@ -91,8 +91,11 @@ import {
   Upload,
   Wallet,
   X,
+  TrendingUp,
+  TrendingDown,
+  PiggyBank,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useAnimatedPct } from "@/hooks/useAnimatedPct";
 import { AnimatedCurrency } from "@/components/shared/AnimatedCurrency";
@@ -320,9 +323,8 @@ function MoneyFlowApp() {
 
       {/* Header */}
       <header className="relative z-10 px-3 sm:px-6 pt-4 sm:pt-5 pb-2 sm:pb-3 max-w-5xl mx-auto flex items-center gap-2">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-lg shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="text-base sm:text-lg font-bold mf-gradient-text truncate">MoneyFlow</div>
+          <div className="text-base sm:text-lg font-bold mf-gradient-text truncate">Satang</div>
         </div>
         <div className="flex items-center shrink-0 gap-1">
           <NotificationBell items={notifications} />
@@ -355,7 +357,7 @@ function MoneyFlowApp() {
             fullTitle="รายรับเดือนนี้"
             value={monthTotals.income}
             currency={currency}
-            icon="↑"
+            icon={<TrendingUp className="w-4 h-4" />}
             onClick={() => openAdd("income")}
             hint="แตะเพื่อเพิ่ม"
           />
@@ -365,7 +367,7 @@ function MoneyFlowApp() {
             fullTitle="รายจ่ายเดือนนี้"
             value={monthTotals.expense}
             currency={currency}
-            icon="↓"
+            icon={<TrendingDown className="w-4 h-4" />}
             onClick={() => openAdd("expense")}
             hint="แตะเพื่อเพิ่ม"
           />
@@ -375,7 +377,7 @@ function MoneyFlowApp() {
             fullTitle="ออมเดือนนี้"
             value={monthTotals.saving}
             currency={currency}
-            icon="⧠"
+            icon={<PiggyBank className="w-4 h-4" />}
             onClick={() => openAdd("saving")}
             hint="แตะเพื่อเพิ่ม"
           />
@@ -385,7 +387,7 @@ function MoneyFlowApp() {
             fullTitle="คงเหลือรวม"
             value={totalBalance}
             currency={currency}
-            icon="฿"
+            icon={<Wallet className="w-4 h-4" />}
             onClick={() => setTab("dashboard")}
             hint={
               carryover !== 0
@@ -563,7 +565,7 @@ function StatCard({
   fullTitle?: string;
   value: number;
   currency: string;
-  icon: string;
+  icon: ReactNode;
   onClick?: () => void;
   hint?: string;
   highlight?: "negative" | "neutral";
@@ -1707,7 +1709,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
   const { removingIds: removingGoals, animateRemove: animateRemoveGoal } = useRemovingIds();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🎯");
+  const [emoji, setEmoji] = useState("");
   const [target, setTarget] = useState("");
   const [deadline, setDeadline] = useState<string>("");
 
@@ -1732,7 +1734,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
       toast.success("เพิ่มเป้าหมายแล้ว");
       setOpen(false);
       setName("");
-      setEmoji("🎯");
+      setEmoji("");
       setTarget("");
       setDeadline("");
     },
@@ -1806,7 +1808,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
               <div key={g.id} className={`rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card mf-list-item ${removingGoals.has(g.id) ? "mf-card-removing" : ""}`}>
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex items-center gap-2">
-                    <div className="text-2xl">{g.emoji || "🎯"}</div>
+                    <div className="text-2xl">{g.emoji}</div>
                     <div className="min-w-0">
                       <div className="font-semibold truncate">{g.name}</div>
                       <div className="text-[11px] text-muted-foreground">
@@ -1878,7 +1880,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
               onClick={() =>
                 create.mutate({
                   name: name || "เป้าหมาย",
-                  emoji: emoji || "🎯",
+                  emoji: emoji,
                   targetAmount: Number(target),
                   deadline: deadline ? dateInputToTs(deadline) : null,
                 })

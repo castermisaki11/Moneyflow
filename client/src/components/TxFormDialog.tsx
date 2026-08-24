@@ -94,7 +94,7 @@ export default function TxFormDialog({ open, onOpenChange, initialType = "expens
       // SW returns { id: -timestamp } when queued offline
       const isQueued = typeof data?.id === "number" && data.id < 0;
       if (isQueued) {
-        toast("📥 บันทึกชั่วคราว — จะ sync เมื่อออนไลน์", {
+        toast("บันทึกชั่วคราว — จะ sync เมื่อออนไลน์", {
           description: "รายการจะถูกส่งไปยังเซิร์ฟเวอร์อัตโนมัติ",
           icon: <WifiOff size={16} />,
           duration: 5000,
@@ -139,7 +139,7 @@ export default function TxFormDialog({ open, onOpenChange, initialType = "expens
       <DialogContent className="max-w-md w-[calc(100vw-1.25rem)] max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg flex items-center gap-2">
-            ➕ เพิ่มรายการ
+            เพิ่มรายการ
             {!isOnline && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-500">
                 <WifiOff size={10} />
