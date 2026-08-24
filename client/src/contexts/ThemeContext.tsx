@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 // "system" tracks the OS/browser color-scheme preference live; "light"/"dark"
-// are explicit user choices that override it. `theme` (what components read
-// to decide colors) always resolves to "light" | "dark" — never "system".
-export type ThemeMode = "light" | "dark" | "system";
+// are explicit user choices that override it; "blackgold" is a dark variant
+// with gold accents (theme #3). `theme` (what components read to decide
+// colors) always resolves to "light" | "dark" — never "system"/"blackgold".
+export type ThemeMode = "light" | "dark" | "blackgold" | "system";
 type ResolvedTheme = "light" | "dark";
 
 interface ThemeContextType {
@@ -34,7 +35,7 @@ export function ThemeProvider({
   const [mode, setModeState] = useState<ThemeMode>(() => {
     if (switchable) {
       const stored = localStorage.getItem("theme");
-      if (stored === "light" || stored === "dark" || stored === "system") return stored;
+      if (stored === "light" || stored === "dark" || stored === "blackgold" || stored === "system") return stored;
     }
     return defaultTheme;
   });
@@ -52,27 +53,31 @@ export function ThemeProvider({
     return () => mql.removeEventListener?.("change", onChange);
   }, []);
 
-  const theme: ResolvedTheme = mode === "system" ? (systemPrefersDark ? "dark" : "light") : mode;
+  const theme: ResolvedTheme = mode === "light" ? "light" : "dark";
+  const isBlackGold = mode === "blackgold";
 
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+    root.classList.toggle("dark", theme === "dark");
+    root.classList.toggle("black-gold", isBlackGold);
 
     if (switchable) {
       localStorage.setItem("theme", mode);
     }
-  }, [theme, mode, switchable]);
+  }, [theme, isBlackGold, mode, switchable]);
 
   const setMode = switchable ? (m: ThemeMode) => setModeState(m) : undefined;
 
-  // Quick toggle (header icon button): if currently following the system,
-  // lock to the opposite of what's showing right now; otherwise flip light/dark.
+  // Quick toggle (header icon button): cycles light → dark → blackgold → light.
+  // If currently following the system, jump to the opposite of what's showing.
   const toggleTheme = switchable
-    ? () => setModeState((prev) => (prev === "system" ? (theme === "dark" ? "light" : "dark") : prev === "light" ? "dark" : "light"))
+    ? () =>
+        setModeState((prev) => {
+          if (prev === "system") return theme === "dark" ? "light" : "dark";
+          if (prev === "light") return "dark";
+          if (prev === "dark") return "blackgold";
+          return "light";
+        })
     : undefined;
 
   return (

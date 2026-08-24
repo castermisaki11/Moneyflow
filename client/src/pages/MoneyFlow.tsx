@@ -26,6 +26,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/contexts/ThemeContext";
+import { ThemeMenu } from "@/components/ThemeMenu";
 import {
   CATEGORIES,
   CURRENCIES,
@@ -190,7 +191,7 @@ function MoneyFlowApp() {
   });
   const [addOpen, setAddOpen] = useState(false);
   const [addType, setAddType] = useState<TxType>("expense");
-  const { theme, toggleTheme } = useTheme();
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
 
   const settings = trpc.settings.get.useQuery();
   const currency = settings.data?.currency || "THB";
@@ -298,16 +299,7 @@ function MoneyFlowApp() {
         </div>
         <div className="flex items-center shrink-0 gap-1">
           <NotificationBell items={notifications} />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 sm:h-10 sm:w-10"
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-            title={theme === "dark" ? "ใช้ธีมสว่าง" : "ใช้ธีมมืด"}
-          >
-            {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </Button>
+          <ThemeMenu mode={themeMode} onModeChange={(m) => setThemeMode?.(m)} />
           <Button
             variant="ghost"
             size="icon"
