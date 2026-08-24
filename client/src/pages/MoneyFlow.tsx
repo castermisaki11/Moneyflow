@@ -1,4 +1,3 @@
-import NotificationBell, { MfNotification } from "@/components/NotificationBell";
 import TxFormDialog from "@/components/TxFormDialog";
 import { MonthlyReportView } from "@/components/views/MonthlyReportView";
 import { DataView } from "@/components/views/DataView";
@@ -50,7 +49,6 @@ import {
   isSameDay,
   isSameMonth,
   isSameWeek,
-  monthKey,
   startOfDayTs,
   startOfMonthTs,
   startOfWeekTs,
@@ -59,8 +57,6 @@ import {
   tsToDateInput,
 } from "@/lib/money";
 import { trpc } from "@/lib/trpc";
-import { useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 
 import {
   Activity,
@@ -75,8 +71,6 @@ import {
   FileBarChart,
   ListChecks,
   Loader2,
-  LogOut,
-  Moon,
   Paperclip,
   Pencil,
   CircleUserRound,
@@ -208,17 +202,6 @@ function useRemovingIds() {
 
 function MoneyFlowApp() {
   const [tab, setTab] = useState<Tab>("dashboard");
-  const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
-
-  const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => {
-      sessionStorage.removeItem("moneyflow.pinUnlockedAt");
-      sessionStorage.removeItem("moneyflow.pinUnlockedUserId");
-      queryClient.clear(); // drop in-memory + persisted cache so the next login starts clean
-      setLocation("/login", { replace: true });
-    },
-  });
   const [addOpen, setAddOpen] = useState(false);
   const [addType, setAddType] = useState<TxType>("expense");
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
@@ -260,54 +243,6 @@ function MoneyFlowApp() {
 
   const totalBalance = carryover + balance;
 
-  // Compute notifications: budget_over (current period), recurring_due (<= today)
-  const notifications = useMemo<MfNotification[]>(() => {
-    const list: MfNotification[] = [];
-    const now = Date.now();
-    const monthStart = startOfMonthTs(now);
-    const monthEnd = endOfMonthTs(now);
-    const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
-    const yearEnd = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59).getTime();
-    const _d = new Date(); _d.setHours(0,0,0,0);
-    const dayStart = _d.getTime(); const dayEnd = dayStart + 86399999;
-    const _w = new Date(); _w.setDate(_w.getDate() - _w.getDay()); _w.setHours(0,0,0,0);
-    const weekStart = _w.getTime(); const weekEnd = weekStart + 7 * 86400000 - 1;
-    // budget over
-    (budgets.data || []).forEach((b) => {
-      const [from, to] = b.period === "daily" ? [dayStart, dayEnd] : b.period === "weekly" ? [weekStart, weekEnd] : b.period === "yearly" ? [yearStart, yearEnd] : [monthStart, monthEnd];
-      const spent = (txs.data || [])
-        .filter(
-          (x) =>
-            x.type === "expense" &&
-            x.category === b.category &&
-            Number(x.occurredAt) >= from &&
-            Number(x.occurredAt) <= to,
-        )
-        .reduce((a, x) => a + toNumber(x.amount), 0);
-      const limit = toNumber(b.limitAmount);
-      if (limit > 0 && spent >= limit) {
-        list.push({
-          id: `budget-${b.id}-${monthKey(now)}`,
-          kind: "budget_over",
-          title: `งบ "${b.category}" ใช้เกินแล้ว`,
-          detail: `ใช้ไป ${formatCurrency(spent, currency)} / ${formatCurrency(limit, currency)}`,
-        });
-      }
-    });
-    // recurring due
-    (recurring.data || []).forEach((r) => {
-      if (Number(r.nextDate) <= now) {
-        list.push({
-          id: `recurring-${r.id}-${Math.floor(Number(r.nextDate) / 86400000)}`,
-          kind: "recurring_due",
-          title: `มีรายการประจำครบกำหนด`,
-          detail: `${TYPE_LABEL[r.type as TxType]} ${formatCurrency(toNumber(r.amount), currency)} • ${r.category || "รายการ"}`,
-        });
-      }
-    });
-    return list;
-  }, [budgets.data, txs.data, recurring.data, currency]);
-
   const openAdd = (t: TxType) => {
     setAddType(t);
     setAddOpen(true);
@@ -324,22 +259,6 @@ function MoneyFlowApp() {
           <span className="inline-flex items-center rounded-xl border border-border/70 bg-card/60 backdrop-blur px-3 py-1 shadow-sm">
             <span className="text-base sm:text-lg font-bold mf-gradient-text truncate">Satang</span>
           </span>
-        </div>
-        <div className="flex items-center shrink-0 gap-1">
-          <NotificationBell items={notifications} />
-          <ThemeMenu mode={themeMode} onModeChange={(m) => setThemeMode?.(m)} />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 sm:h-10 sm:w-10"
-            onClick={() => {
-              logoutMutation.mutate();
-            }}
-            title="ออกจากระบบ"
-            aria-label="ออกจากระบบ"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
         </div>
       </header>
 
@@ -518,6 +437,13 @@ function MoneyFlowApp() {
           {tab === "bot" && isAdmin && <BotView />}
         </div>
       </main>
+
+      {/* Floating theme switcher — bottom-left corner */}
+      <div className="fixed bottom-5 left-5 z-20 mf-pop">
+        <div className="rounded-full border border-border/70 bg-card/70 backdrop-blur-md shadow-xl">
+          <ThemeMenu mode={themeMode} onModeChange={(m) => setThemeMode?.(m)} />
+        </div>
+      </div>
 
       {/* Floating Add button */}
       <button
