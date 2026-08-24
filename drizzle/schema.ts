@@ -23,6 +23,11 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
+  // Profile photo URL from the OAuth provider (Discord/Google CDN) — null for password accounts
+  pictureUrl: text("pictureUrl"),
+  // True once the user edited their display name themselves — their custom
+  // name then survives re-login, instead of being overwritten by the provider
+  nameCustomized: boolean("nameCustomized").default(false).notNull(),
   email: varchar("email", { length: 320 }).unique(), // nullable for Discord OAuth users
   passwordHash: varchar("passwordHash", { length: 255 }), // nullable for Discord OAuth users
   loginMethod: varchar("loginMethod", { length: 64 }),

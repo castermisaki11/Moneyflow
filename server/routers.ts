@@ -24,6 +24,7 @@ import {
   setUserRole,
   upsertSettings,
   updateTransaction,
+  updateUserProfile,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { botRouter } from "./_core/botRouter";
@@ -72,6 +73,19 @@ export const appRouter = router({
       ctx.res.clearCookie(REFRESH_COOKIE_NAME, cookieOptions);
       return { success: true } as const;
     }),
+
+    // Editable display name — once set, the OAuth provider's name no longer
+    // overwrites it on future logins (see updateUserProfile in db.ts).
+    updateName: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().trim().min(1, "ชื่อต้องไม่ว่าง").max(80),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await updateUserProfile(ctx.user.id, { name: input.name });
+        return { success: true } as const;
+      }),
 
   }),
 

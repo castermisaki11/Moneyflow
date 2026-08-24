@@ -71,6 +71,7 @@ export function registerOAuthRoutes(app: Express) {
           openId,
           name: oauthUser.name,
           email: oauthUser.email,
+          pictureUrl: oauthUser.picture,
           passwordHash: "",
           loginMethod: provider.id,
         });

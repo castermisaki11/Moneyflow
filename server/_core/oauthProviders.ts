@@ -15,6 +15,8 @@ export interface NormalizedOAuthUser {
   id: string; // provider's own user id (stable, never the email)
   name: string | null;
   email: string | null;
+  /** Profile photo URL on the provider's CDN — shown as the account avatar */
+  picture: string | null;
 }
 
 export interface OAuthProviderConfig {
@@ -62,6 +64,11 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       id: raw.id,
       name: raw.global_name || raw.username,
       email: null,
+      // Discord doesn't return a ready-made avatar URL — build it from the
+      // user id + avatar hash (null when the account has no custom avatar).
+      picture: raw.avatar
+        ? `https://cdn.discordapp.com/avatars/${raw.id}/${raw.avatar}.png?size=256`
+        : null,
     }),
   },
   google: {
@@ -82,6 +89,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       id: raw.id,
       name: raw.name || raw.email || null,
       email: raw.email ?? null,
+      picture: raw.picture ?? null,
     }),
   },
 };

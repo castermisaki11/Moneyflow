@@ -24,6 +24,28 @@ const LOGIN_METHOD_LABEL: Record<string, string> = {
   password: "รหัสผ่าน",
 };
 
+/** Small provider avatar with initial fallback (CDN images can 404) */
+function UserAvatar({ pictureUrl, name }: { pictureUrl: string | null | undefined; name: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const n = (name || "").trim();
+  const ch = n ? Array.from(n)[0].toUpperCase() : "?";
+  return (
+    <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 grid place-items-center text-[11px] font-bold bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white">
+      {pictureUrl && !failed ? (
+        <img
+          src={pictureUrl}
+          alt=""
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        ch
+      )}
+    </div>
+  );
+}
+
 export function UsersView() {
   const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery();
@@ -99,8 +121,13 @@ export function UsersView() {
               return (
                 <tr key={u.id} className="hover:bg-muted/20">
                   <td className="p-2">
-                    <div className="font-medium">{u.name || "(ไม่มีชื่อ)"}</div>
-                    <div className="text-muted-foreground">{u.email || "—"}</div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <UserAvatar pictureUrl={(u as any).pictureUrl} name={u.name} />
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{u.name || "(ไม่มีชื่อ)"}</div>
+                        <div className="text-muted-foreground">{u.email || "—"}</div>
+                      </div>
+                    </div>
                   </td>
                   <td className="p-2 text-muted-foreground">
                     {LOGIN_METHOD_LABEL[u.loginMethod ?? ""] ?? u.loginMethod ?? "—"}

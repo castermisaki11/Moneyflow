@@ -54,6 +54,9 @@ ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email"             varchar(320) UN
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "passwordHash"      varchar(255);
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resetToken"        varchar(255);
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resetTokenExpires" timestamp;
+-- OAuth profile picture + manual display-name flag
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "pictureUrl"       text;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "nameCustomized"   boolean NOT NULL DEFAULT false;
 -- Make email and passwordHash nullable for Discord OAuth users
 ALTER TABLE "users" ALTER COLUMN "email" DROP NOT NULL;
 ALTER TABLE "users" ALTER COLUMN "passwordHash" DROP NOT NULL;

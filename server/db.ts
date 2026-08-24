@@ -45,11 +45,17 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     openId: user.openId,
     name: user.name ?? null,
     email: user.email ?? null,
+    pictureUrl: user.pictureUrl ?? null,
     passwordHash: user.passwordHash ?? "", // Default empty for OAuth users
     loginMethod: user.loginMethod ?? null,
     lastSignedIn: user.lastSignedIn ?? now,
     role: isEnvAdmin ? "admin" : (user.role ?? "user"),
   };
+
+  // On re-login, refresh the display name from the provider ONLY if the user
+  // never edited it themselves (see updateUserProfile) — otherwise a manual
+  // name would be silently reverted on every OAuth login. The avatar always
+  // follows the provider, since there's no in-app way to change it.
 
   const res = await db
     .insert(users)
@@ -57,8 +63,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     .onConflictDoUpdate({
       target: users.openId,
       set: {
-        name: values.name,
+        name: sql`CASE WHEN ${users.nameCustomized} IS TRUE THEN ${users.name} ELSE ${values.name} END`,
         email: values.email,
+        pictureUrl: values.pictureUrl,
 
         loginMethod: values.loginMethod,
         lastSignedIn: values.lastSignedIn,
@@ -73,6 +80,27 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   // name/role/etc. may have just changed — drop the cached session lookup so
   // the next request re-reads the fresh row instead of serving a stale one.
   if (res[0]) cache.delete(userSessionKey(res[0].id));
+}
+
+/**
+ * Update the signed-in user's own profile. Setting a custom display name
+ * flags the account so upsertUser stops overwriting it with the provider's
+ * name on every login.
+ */
+export async function updateUserProfile(
+  userId: number,
+  patch: { name?: string }
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(users)
+    .set({
+      ...(patch.name !== undefined ? { name: patch.name, nameCustomized: true } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId));
+  cache.delete(userSessionKey(userId));
 }
 
 export async function listAllUsers() {
