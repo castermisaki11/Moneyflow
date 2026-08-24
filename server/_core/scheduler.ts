@@ -178,18 +178,37 @@ async function checkUser(userId: number, dateStr: string, hour: number, dow: num
   // while today still has zero transactions (user-configurable).
   const reminderEnabled = notif.dailyReminderEnabled !== false;
   if (reminderEnabled && notif.dailyReminderMode === "interval") {
-    const intervalMs = Math.max(5, notif.dailyReminderIntervalMinutes ?? 60) * 60 * 1000;
-    const lastAt = state.lastIntervalReminderAt ?? 0;
-    if (Date.now() - lastAt >= intervalMs) {
+    const minutes = Math.max(5, notif.dailyReminderIntervalMinutes ?? 60);
+    const intervalMs = minutes * 60 * 1000;
+    // Reminders align to REAL clock boundaries (epoch-multiples of the
+    // interval), not "N minutes since the previous one": e.g. armed at
+    // 16:37 with interval=1h fires at 17:00:00, then 18:00, 19:00…
+    let lastAt = state.lastIntervalReminderAt ?? 0;
+    if (!lastAt) {
+      // Just switched into interval mode: arm silently and wait for the
+      // next boundary instead of firing immediately.
+      lastAt = Date.now();
+      state.lastIntervalReminderAt = lastAt;
+      dirty = true;
+    }
+    const nextSlotAt = Math.floor(lastAt / intervalMs) * intervalMs + intervalMs;
+    if (Date.now() >= nextSlotAt) {
       const { from, to } = periodRange("daily");
       const todaysTx = await listTransactions(userId, { from, to, limit: 1 });
       if (todaysTx.length === 0) {
+        const hhmm = new Date(nextSlotAt).toLocaleTimeString("th-TH", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
         await sendTelegramMessage(
           chatId,
-          `⏰ <b>ยังไม่ได้บันทึกรายการวันนี้เลยนะ</b> (เตือนทุก ${Math.max(5, notif.dailyReminderIntervalMinutes ?? 60)} นาที)\nพิมพ์ /interval daily เพื่อเปลี่ยนกลับเป็นเตือนรายวัน`,
+          `⏰ <b>ยังไม่ได้บันทึกรายการวันนี้เลยนะ</b> (${hhmm} น. · เตือนทุก ${minutes} นาที)\nพิมพ์ /interval daily เพื่อเปลี่ยนกลับเป็นเตือนรายวัน`,
         );
       }
-      state.lastIntervalReminderAt = Date.now();
+      // Snap to the most recent completed slot (skips missed ones during
+      // downtime) so alignment stays on absolute clock boundaries.
+      state.lastIntervalReminderAt = Math.floor(Date.now() / intervalMs) * intervalMs;
       dirty = true;
     }
   } else if (reminderEnabled) {

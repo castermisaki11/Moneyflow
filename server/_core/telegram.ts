@@ -965,9 +965,17 @@ async function handleIntervalCommand(chatId: string, userId: number, arg: string
 
   const raw = arg.trim().toLowerCase();
   if (!raw) {
-    const current = mode === "interval"
-      ? `ทุก <b>${minutes}</b> นาที`
-      : `วันละครั้ง ตอน ${String(notif.dailyReminderHour ?? 20).padStart(2, "0")}:00 น.`;
+    let current: string;
+    if (mode === "interval") {
+      const intervalMs = minutes * 60 * 1000;
+      // Reminders fire on real clock boundaries (see scheduler.ts)
+      const lastAt = notif._state?.lastIntervalReminderAt ?? Date.now();
+      const nextSlotAt = Math.floor(lastAt / intervalMs) * intervalMs + intervalMs;
+      const hhmm = new Date(nextSlotAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false });
+      current = `ทุก <b>${minutes}</b> นาที (ครั้งถัดไป ${hhmm} น.)`;
+    } else {
+      current = `วันละครั้ง ตอน ${String(notif.dailyReminderHour ?? 20).padStart(2, "0")}:00 น.`;
+    }
     await sendTelegramMessage(
       chatId,
       `⏰ <b>ความถี่เตือนตอนนี้:</b> ${current}\n\nเปลี่ยนได้ เช่น <code>/interval 30</code>, <code>/interval 2h</code>, <code>/interval daily</code>`,
@@ -1000,7 +1008,13 @@ async function handleIntervalCommand(chatId: string, userId: number, arg: string
     dailyReminderIntervalMinutes: minutesToSet,
   });
   const label = minutesToSet >= 60 && minutesToSet % 60 === 0 ? `${minutesToSet / 60} ชั่วโมง` : `${minutesToSet} นาที`;
-  await sendTelegramMessage(chatId, "\u2705 \u0E15\u0E31\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E17\u0E38\u0E01 <b>" + label + "</b> \u0E41\u0E25\u0E49\u0E27 (\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E40\u0E21\u0E37\u0E48\u0E2D\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23)\n\u0E01\u0E25\u0E31\u0E1A\u0E40\u0E1B\u0E47\u0E19\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E23\u0E32\u0E22\u0E27\u0E31\u0E19: <code>/interval daily</code>",);
+  const intervalMs = minutesToSet * 60 * 1000;
+  const firstFire = Math.floor(Date.now() / intervalMs) * intervalMs + intervalMs;
+  const hhmm = new Date(firstFire).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false });
+  await sendTelegramMessage(
+    chatId,
+    `✅ ตั้งเตือนทุก <b>${label}</b> แล้ว — ยึดขอบเวลาจริง เช่น 1 ชม. = แจ้งที่ 17:00, 18:00…\n🔔 ครั้งแรก: <b>${hhmm} น.</b> (เฉพาะเมื่อวันนี้ยังไม่มีรายการ)\nกลับเป็นเตือนรายวัน: <code>/interval daily</code>`,
+  );
 }
 
 async function buildRemindersView(userId: number): Promise<{ text: string; keyboard: InlineKeyboard }> {
