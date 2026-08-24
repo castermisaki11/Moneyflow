@@ -72,7 +72,7 @@ html {
   overflow: hidden;
 }
 
-/* Grid cards (budgets/goals/wishlist/recurring): fade + shrink out smoothly.
+/* Grid cards (budgets/goals/recurring): fade + shrink out smoothly.
    No height collapse here — cards are taller than rows and collapsing would jump. */
 @keyframes mf-card-exit {
   from { opacity: 1; transform: scale(1); }

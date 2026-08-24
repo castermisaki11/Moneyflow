@@ -39,7 +39,6 @@ const queryClient = new QueryClient({
 queryClient.setQueryDefaults(getQueryKey(trpc.transactions.list), { staleTime: 30 * 1000 });
 queryClient.setQueryDefaults(getQueryKey(trpc.budgets.list), { staleTime: 60 * 1000 });
 queryClient.setQueryDefaults(getQueryKey(trpc.goals.list), { staleTime: 60 * 1000 });
-queryClient.setQueryDefaults(getQueryKey(trpc.wishlist.list), { staleTime: 60 * 1000 });
 queryClient.setQueryDefaults(getQueryKey(trpc.recurring.list), { staleTime: 2 * 60 * 1000 });
 queryClient.setQueryDefaults(getQueryKey(trpc.settings.get), { staleTime: 5 * 60 * 1000 });
 

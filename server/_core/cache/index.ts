@@ -15,7 +15,6 @@ export const CACHE_TTL = {
   settings: 5 * 60_000, // 5 min
   budgets: 60_000, // 1 min
   goals: 60_000,
-  wishlist: 60_000,
   recurring: 2 * 60_000,
   transactions: 30_000, // 30s — changes most often
   userSession: 45_000, // hit on every authenticated request; short so role/name edits show up fast

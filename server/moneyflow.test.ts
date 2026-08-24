@@ -7,7 +7,6 @@ vi.mock("./db", () => {
     transactions: [] as any[],
     budgets: [] as any[],
     goals: [] as any[],
-    wishlist: [] as any[],
     recurring: [] as any[],
     settings: new Map<number, any>(),
     nextId: 1,
@@ -60,16 +59,6 @@ vi.mock("./db", () => {
       state.goals = state.goals.filter((g) => !(g.userId === userId && g.id === id));
       return { ok: true };
     }),
-    createWish: vi.fn(async (row: any) => {
-      const id = nextId();
-      state.wishlist.push({ id, ...row });
-      return id;
-    }),
-    listWishlist: vi.fn(async (userId: number) => state.wishlist.filter((w) => w.userId === userId)),
-    deleteWish: vi.fn(async (userId: number, id: number) => {
-      state.wishlist = state.wishlist.filter((w) => !(w.userId === userId && w.id === id));
-      return { ok: true };
-    }),
     createRecurring: vi.fn(async (row: any) => {
       const id = nextId();
       state.recurring.push({ id, ...row });
@@ -118,7 +107,6 @@ async function resetState() {
   s.transactions.length = 0;
   s.budgets.length = 0;
   s.goals.length = 0;
-  s.wishlist.length = 0;
   s.recurring.length = 0;
   s.settings.clear();
   s.nextId = 1;

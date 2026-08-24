@@ -10,7 +10,7 @@ export function userPrefix(entity: string, userId: number): string {
   return `${entity}:${userId}`;
 }
 
-/** Stable key for params-less reads (settings, budgets, goals, wishlist, recurring). */
+/** Stable key for params-less reads (settings, budgets, goals, recurring). */
 export function userKey(entity: string, userId: number): string {
   return userPrefix(entity, userId);
 }

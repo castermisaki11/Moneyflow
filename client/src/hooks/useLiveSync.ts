@@ -9,7 +9,6 @@ const ENTITY_QUERY_KEYS: Record<string, () => unknown[]> = {
   transactions: () => getQueryKey(trpc.transactions.list),
   budgets: () => getQueryKey(trpc.budgets.list),
   goals: () => getQueryKey(trpc.goals.list),
-  wishlist: () => getQueryKey(trpc.wishlist.list),
   recurring: () => getQueryKey(trpc.recurring.list),
   settings: () => getQueryKey(trpc.settings.get),
 };

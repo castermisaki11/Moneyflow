@@ -1,7 +1,7 @@
 {
   "name": "Satang — ระบบจัดการการเงินส่วนตัว",
   "short_name": "Satang",
-  "description": "บันทึกรายรับรายจ่าย ตั้งงบ เป้าหมายการออม Wishlist และรายการประจำ",
+  "description": "บันทึกรายรับรายจ่าย ตั้งงบ เป้าหมายการออมและรายการประจำ",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

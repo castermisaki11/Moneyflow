@@ -4,7 +4,6 @@ import {
   type Transaction,
   type Budget,
   type Goal,
-  type WishItem,
   type Recurring,
   type TxType,
 } from "@/lib/types";
@@ -18,7 +17,6 @@ interface DataViewProps {
   transactions: Transaction[];
   budgets: Budget[];
   goals: Goal[];
-  wishlist: WishItem[];
   recurring: Recurring[];
   /** Shown when the page is opened as a sub-page of Settings */
   onBack?: () => void;
@@ -62,7 +60,7 @@ function csvCell(val: string | number | null | undefined): string {
   return s;
 }
 
-export function DataView({ currency, transactions, budgets, goals, wishlist, recurring, onBack }: DataViewProps) {
+export function DataView({ currency, transactions, budgets, goals, recurring, onBack }: DataViewProps) {
   const utils = trpc.useUtils();
   const createTx = trpc.transactions.create.useMutation();
   const importInput = useRef<HTMLInputElement | null>(null);
@@ -79,7 +77,7 @@ export function DataView({ currency, transactions, budgets, goals, wishlist, rec
   };
 
   const exportJson = () => {
-    const payload = { exportedAt: new Date().toISOString(), currency, transactions, budgets, goals, wishlist, recurring };
+    const payload = { exportedAt: new Date().toISOString(), currency, transactions, budgets, goals, recurring };
     triggerDownload(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }), `moneyflow-${Date.now()}.json`);
   };
 
@@ -243,7 +241,7 @@ export function DataView({ currency, transactions, budgets, goals, wishlist, rec
       )}
       <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">
         <div className="text-sm font-semibold mb-1">Export</div>
-        <div className="text-xs text-muted-foreground mb-3">ดาวน์โหลดข้อมูลทั้งหมด (รายการ / งบ / เป้าหมาย / Wishlist / รายการประจำ)</div>
+        <div className="text-xs text-muted-foreground mb-3">ดาวน์โหลดข้อมูลทั้งหมด (รายการ / งบ / เป้าหมาย / รายการประจำ)</div>
         <div className="flex gap-2 flex-wrap">
           <Button onClick={exportJson} variant="default"><Download className="w-4 h-4 mr-1" /> JSON (ทั้งหมด)</Button>
           <Button onClick={exportCsv} variant="outline"><Download className="w-4 h-4 mr-1" /> CSV (รายการ)</Button>

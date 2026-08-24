@@ -16,13 +16,11 @@ import {
   InsertSettings,
   InsertTransaction,
   InsertUser,
-  InsertWishItem,
-  recurring,
+    recurring,
   reminderLog,
   settings,
   transactions,
   users,
-  wishlist,
 } from "../drizzle/schema";
 import { ENV, isAdminOpenId } from "./_core/env";
 import { CACHE_TTL, cache, getOrSet, invalidateTelegramSummary, invalidateUser, telegramChatKey, userKey, userParamsKey, userSessionKey } from "./_core/cache";
@@ -116,7 +114,7 @@ export async function setUserRole(userId: number, role: "admin" | "user"): Promi
 
 /**
  * Permanently delete a user and every row of their data (transactions,
- * attachments, budgets, goals, wishlist, recurring rules, category-feedback
+ * attachments, budgets, goals, recurring rules, category-feedback
  * log, settings). None of these tables have a DB-level FK/cascade (see
  * drizzle/schema.ts), so this deletes each table explicitly, inside one
  * transaction, before deleting the user row itself — an all-or-nothing
@@ -130,7 +128,6 @@ export async function deleteUser(userId: number): Promise<void> {
     await tx.delete(transactions).where(eq(transactions.userId, userId));
     await tx.delete(budgets).where(eq(budgets.userId, userId));
     await tx.delete(goals).where(eq(goals.userId, userId));
-    await tx.delete(wishlist).where(eq(wishlist.userId, userId));
     await tx.delete(recurring).where(eq(recurring.userId, userId));
     await tx.delete(categoryFeedback).where(eq(categoryFeedback.userId, userId));
     await tx.delete(settings).where(eq(settings.userId, userId));
@@ -141,7 +138,7 @@ export async function deleteUser(userId: number): Promise<void> {
   // index of which telegramChat key(s) pointed at this user, so — same as
   // upsertSettings — drop the whole telegramChat namespace rather than risk
   // leaving one instance stale.
-  for (const entity of ["transactions", "budgets", "goals", "wishlist", "recurring", "settings"]) {
+  for (const entity of ["transactions", "budgets", "goals", "recurring", "settings"]) {
     invalidateUser(entity, userId);
   }
   cache.delete(userSessionKey(userId));
@@ -300,41 +297,7 @@ export async function deleteGoal(userId: number, id: number) {
   invalidateUser("goals", userId);
 }
 
-// ---------- Wishlist ----------
 
-export async function listWishlist(userId: number) {
-  return getOrSet(userKey("wishlist", userId), CACHE_TTL.wishlist, async () => {
-    const db = await getDb();
-    if (!db) return [];
-    return db.select().from(wishlist).where(eq(wishlist.userId, userId)).orderBy(desc(wishlist.createdAt));
-  });
-}
-export async function createWish(row: InsertWishItem): Promise<number> {
-  const db = await getDb();
-  if (!db) throw new Error("DB unavailable");
-  const res = await db.insert(wishlist).values(row).returning({ id: wishlist.id });
-  invalidateUser("wishlist", row.userId as number);
-  return res[0].id;
-}
-export async function deleteWish(userId: number, id: number) {
-  const db = await getDb();
-  if (!db) return;
-  await db.delete(wishlist).where(and(eq(wishlist.userId, userId), eq(wishlist.id, id)));
-  invalidateUser("wishlist", userId);
-}
-
-export async function toggleWishBought(userId: number, id: number) {
-  const db = await getDb();
-  if (!db) return;
-  const cur = await db.select().from(wishlist).where(and(eq(wishlist.userId, userId), eq(wishlist.id, id))).limit(1);
-  if (!cur[0]) return;
-  await db.update(wishlist)
-    .set({ bought: !(cur[0] as any).bought, updatedAt: new Date() } as any)
-    .where(and(eq(wishlist.userId, userId), eq(wishlist.id, id)));
-  invalidateUser("wishlist", userId);
-}
-
-// ---------- Recurring ----------
 
 export async function listRecurring(userId: number) {
   return getOrSet(userKey("recurring", userId), CACHE_TTL.recurring, async () => {

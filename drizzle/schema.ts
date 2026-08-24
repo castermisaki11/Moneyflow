@@ -92,21 +92,6 @@ export const goals = pgTable(
 export type Goal = typeof goals.$inferSelect;
 export type InsertGoal = typeof goals.$inferInsert;
 
-export const wishlist = pgTable(
-  "wishlist",
-  {
-    id: serial("id").primaryKey(),
-    userId: integer("userId").notNull(),
-    name: varchar("name", { length: 200 }).notNull(),
-    price: decimal("price", { precision: 14, scale: 2 }).notNull(),
-    priority: priorityEnum("priority").default("medium").notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-  },
-  (t) => ({ userIdx: index("wishlist_user_idx").on(t.userId) }),
-);
-export type WishItem = typeof wishlist.$inferSelect;
-export type InsertWishItem = typeof wishlist.$inferInsert;
 
 export const recurring = pgTable(
   "recurring",

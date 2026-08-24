@@ -6,9 +6,7 @@ import {
   listGoals,
   listRecurring,
   listTransactions,
-  listWishlist,
   logReminderDone,
-  toggleWishBought,
 } from "../db";
 import { periodRange, toBangkokWallClock, type PeriodKind } from "./bangkokTime";
 import { CACHE_TTL, getOrSet, telegramSummaryKey } from "./cache";
@@ -195,7 +193,6 @@ async function setBotCommands(): Promise<void> {
           { command: "budget", description: "เงินเหลือใช้ต่อวันเทียบกับงบ" },
           { command: "goals", description: "ความคืบหน้าเป้าหมายการออม" },
           { command: "recent", description: "รายการล่าสุด (ลบได้จากปุ่ม)" },
-          { command: "wishlist", description: "สิ่งที่อยากได้" },
           { command: "recurring", description: "รายการประจำ" },
           { command: "export", description: "ส่งออกรายการเป็น CSV" },
           { command: "undo", description: "ลบรายการล่าสุด" },
@@ -836,64 +833,6 @@ async function handleDeleteRecent(cq: any): Promise<void> {
   await answerCallbackQuery(cq.id, "ลบแล้ว");
 }
 
-function priorityEmoji(p: string | null): string {
-  return p === "high" ? "🔴" : p === "low" ? "🟢" : "🟡";
-}
-const PRIORITY_RANK: Record<string, number> = { high: 0, medium: 1, low: 2 };
-
-/** Wishlist with a toggle button per item ("✅ ซื้อแล้ว" / "↩️ ยังไม่ซื้อ") so status can flip right from the chat. /wishlist command. */
-async function buildWishlistView(userId: number): Promise<{ text: string; keyboard: InlineKeyboard }> {
-  const items = await listWishlist(userId);
-  if (items.length === 0) {
-    return {
-      text: "ยังไม่มีของที่อยากได้ในลิสต์เลยครับ เพิ่มได้ที่ ตั้งค่า → สิ่งที่อยากได้ ในแอปนะ 🛍️",
-      keyboard: [],
-    };
-  }
-  const sorted = [...items].sort((a, b) => {
-    const ab = (a as any).bought ? 1 : 0;
-    const bb = (b as any).bought ? 1 : 0;
-    if (ab !== bb) return ab - bb;
-    return (PRIORITY_RANK[a.priority ?? "medium"] ?? 1) - (PRIORITY_RANK[b.priority ?? "medium"] ?? 1);
-  });
-  const unbought = sorted.filter((w) => !(w as any).bought);
-  const unboughtTotal = unbought.reduce((s, w) => s + Number(w.price), 0);
-
-  const lines = [
-    "🛍️ <b>สิ่งที่อยากได้</b>",
-    "",
-    `ยังไม่ซื้อ ${unbought.length} รายการ • รวม ${formatMoney(unboughtTotal)}`,
-    "",
-  ];
-  const keyboard: InlineKeyboard = [];
-  for (const w of sorted) {
-    const bought = !!(w as any).bought;
-    const nameHtml = escapeHtml(w.name);
-    lines.push(
-      `${bought ? "✅" : priorityEmoji(w.priority)} ${bought ? `<s>${nameHtml}</s>` : nameHtml} — ${formatMoney(Number(w.price))}`,
-    );
-    const label = `${bought ? "↩️ ยังไม่ซื้อ" : "✅ ซื้อแล้ว"}: ${w.name}`.slice(0, 60);
-    keyboard.push([{ text: label, callback_data: `wishtoggle:${w.id}` }]);
-  }
-  return { text: lines.join("\n"), keyboard };
-}
-
-async function handleWishToggle(cq: any): Promise<void> {
-  const chatId: string | undefined = cq.message?.chat?.id?.toString();
-  const messageId: number | undefined = cq.message?.message_id;
-  const wishId = Number(cq.data.split(":")[1]);
-  if (!chatId || messageId === undefined || !Number.isFinite(wishId)) return;
-  const userId = await findUserIdByTelegramChatId(chatId);
-  if (!userId) {
-    await answerCallbackQuery(cq.id, "ยังไม่ได้เชื่อมต่อบัญชี");
-    return;
-  }
-  await toggleWishBought(userId, wishId);
-  const view = await buildWishlistView(userId);
-  await editTelegramMessage(chatId, messageId, view.text, view.keyboard);
-  await answerCallbackQuery(cq.id, "อัปเดตแล้ว");
-}
-
 function freqLabel(f: string): string {
   return f === "daily" ? "รายวัน" : f === "weekly" ? "รายสัปดาห์" : f === "yearly" ? "รายปี" : "รายเดือน";
 }
@@ -1374,12 +1313,6 @@ const COMMAND_HELP: Record<string, string> = {
     "<b>/list</b> (เหมือน <b>/recent</b>)",
     "รายการล่าสุด 8 รายการ — มีปุ่ม 🗑 ลบทีละรายการได้เลย",
   ].join("\n"),
-  wishlist: [
-    "<b>/wishlist</b>",
-    "รายการสิ่งที่อยากได้",
-    "",
-    "แตะปุ่มที่แนบมาเพื่อติ๊กว่า \"ซื้อแล้ว\" หรือย้อนกลับเป็น \"ยังไม่ซื้อ\" ได้เลย ไม่ต้องเปิดแอป",
-  ].join("\n"),
   recurring: [
     "<b>/recurring</b>",
     "รายการประจำทั้งหมด เรียงตามวันครบกำหนดชำระถัดไป",
@@ -1433,7 +1366,6 @@ async function handleUpdate(
     if (action === "undodel") return handleUndoDelete(cq);
     if (action === "undocancel") return handleUndoCancel(cq);
     if (action === "delrecent") return handleDeleteRecent(cq);
-    if (action === "wishtoggle") return handleWishToggle(cq);
     if (action === "delreminder") return handleDeleteReminder(cq);
     if (action === "snooze") return handleSnoozeReminder(cq);
     if (action === "remdone") return handleReminderDone(cq);
@@ -1508,7 +1440,6 @@ async function handleUpdate(
         "• /budget — เงินเหลือใช้ต่อวัน เทียบกับงบรายเดือนแต่ละหมวด",
         "• /goals — ความคืบหน้าเป้าหมายการออมแต่ละก้อน",
         "• /recent — รายการล่าสุด 8 รายการ (มีปุ่ม 🗑 ลบทีละรายการได้เลย)",
-        "• /wishlist — สิ่งที่อยากได้ (แตะปุ่มเพื่อติ๊กว่าซื้อแล้ว)",
         "• /recurring — รายการประจำและวันครบกำหนดถัดไป",
         "• /export [today|week|month|year] — ส่งออกรายการเป็นไฟล์ CSV (ไม่ระบุ = เดือนนี้)",
         "• /undo — ลบรายการที่บันทึกล่าสุด (มีถามยืนยันก่อน)",
@@ -1557,12 +1488,6 @@ async function handleUpdate(
     const userId = await requireUserId(chatId);
     if (!userId) return;
     const view = await buildRecentView(userId);
-    if (view.keyboard.length > 0) await sendTelegramKeyboard(chatId, view.text, view.keyboard);
-    else await sendTelegramMessage(chatId, view.text);
-  } else if (text.startsWith("/wishlist")) {
-    const userId = await requireUserId(chatId);
-    if (!userId) return;
-    const view = await buildWishlistView(userId);
     if (view.keyboard.length > 0) await sendTelegramKeyboard(chatId, view.text, view.keyboard);
     else await sendTelegramMessage(chatId, view.text);
   } else if (text.startsWith("/recurring")) {

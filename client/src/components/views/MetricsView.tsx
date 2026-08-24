@@ -115,7 +115,6 @@ const ENTITY_LABEL: Record<string, string> = {
   transactions: "รายการ",
   budgets: "งบ",
   goals: "เป้าหมาย",
-  wishlist: "Wishlist",
   recurring: "รายการประจำ",
   settings: "ตั้งค่า",
 };

@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS app_config (
 ALTER TABLE app_config ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now();
 ALTER TABLE app_config DROP COLUMN IF EXISTS updated_at;
 
+-- Wishlist feature removed in v1.0.7 — retire the table and its index
+DROP TABLE IF EXISTS "wishlist";
+
 -- ── Types ────────────────────────────────────────────────────────────────
 DO $$ BEGIN CREATE TYPE "role"     AS ENUM ('user','admin');              EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "tx_type"  AS ENUM ('income','expense','saving'); EXCEPTION WHEN duplicate_object THEN null; END $$;
@@ -93,16 +96,6 @@ CREATE TABLE IF NOT EXISTS "goals" (
 );
 CREATE INDEX IF NOT EXISTS "goals_user_idx" ON "goals" ("userId");
 
-CREATE TABLE IF NOT EXISTS "wishlist" (
-  "id"        serial        PRIMARY KEY,
-  "userId"    integer       NOT NULL,
-  "name"      varchar(200)  NOT NULL,
-  "price"     decimal(14,2) NOT NULL,
-  "priority"  "priority"    NOT NULL DEFAULT 'medium',
-  "createdAt" timestamp     NOT NULL DEFAULT now(),
-  "updatedAt" timestamp     NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS "wishlist_user_idx" ON "wishlist" ("userId");
 
 CREATE TABLE IF NOT EXISTS "recurring" (
   "id"        serial        PRIMARY KEY,
@@ -251,14 +244,6 @@ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='goals' AND column_name='createdat') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='goals' AND column_name='createdAt') THEN ALTER TABLE "goals" RENAME COLUMN "createdat" TO "createdAt"; END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='goals' AND column_name='updated_at') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='goals' AND column_name='updatedAt') THEN ALTER TABLE "goals" RENAME COLUMN "updated_at" TO "updatedAt"; END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='goals' AND column_name='updatedat') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='goals' AND column_name='updatedAt') THEN ALTER TABLE "goals" RENAME COLUMN "updatedat" TO "updatedAt"; END IF;
-
-  -- wishlist
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='user_id') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='userId') THEN ALTER TABLE "wishlist" RENAME COLUMN "user_id" TO "userId"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='userid') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='userId') THEN ALTER TABLE "wishlist" RENAME COLUMN "userid" TO "userId"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='created_at') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='createdAt') THEN ALTER TABLE "wishlist" RENAME COLUMN "created_at" TO "createdAt"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='createdat') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='createdAt') THEN ALTER TABLE "wishlist" RENAME COLUMN "createdat" TO "createdAt"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='updated_at') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='updatedAt') THEN ALTER TABLE "wishlist" RENAME COLUMN "updated_at" TO "updatedAt"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='updatedat') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wishlist' AND column_name='updatedAt') THEN ALTER TABLE "wishlist" RENAME COLUMN "updatedat" TO "updatedAt"; END IF;
 
   -- recurring
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='user_id') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='userId') THEN ALTER TABLE "recurring" RENAME COLUMN "user_id" TO "userId"; END IF;

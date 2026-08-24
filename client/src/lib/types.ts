@@ -2,7 +2,6 @@ import {
   Transaction,
   Budget,
   Goal,
-  WishItem,
   Recurring,
   Settings,
 } from "../../../shared/types";
@@ -11,7 +10,6 @@ export type {
   Transaction,
   Budget,
   Goal,
-  WishItem,
   Recurring,
   Settings,
 };
@@ -19,7 +17,6 @@ export type {
 export type TxType = Transaction["type"];
 export type Period = Budget["period"];
 export type Freq = Recurring["freq"];
-export type Priority = WishItem["priority"];
 
 export interface MoneyFlowSummary {
   income: number;

@@ -73,7 +73,6 @@ import {
   Database,
   Download,
   FileBarChart,
-  Heart,
   ListChecks,
   Loader2,
   LogOut,
@@ -103,7 +102,7 @@ import "@/styles/moneyflow.css";
 
 /**
  * Shared by every entity's delete mutation's onError handler (transactions,
- * budgets, goals, wishlist, recurring — all follow the same optimistic
+ * budgets, goals, recurring — all follow the same optimistic
  * delete pattern below).
  *
  * Why this exists: with tRPC's httpBatchLink, a delete can fail on the
@@ -145,7 +144,6 @@ type Tab =
   | "transactions"
   | "budgets"
   | "goals"
-  | "wishlist"
   | "recurring"
   | "report"
   | "data"
@@ -235,7 +233,6 @@ function MoneyFlowApp() {
   const txs = trpc.transactions.list.useQuery();
   const budgets = trpc.budgets.list.useQuery();
   const goals = trpc.goals.list.useQuery();
-  const wishlist = trpc.wishlist.list.useQuery();
   const recurring = trpc.recurring.list.useQuery();
 
   // derived numbers for current month
@@ -413,7 +410,6 @@ function MoneyFlowApp() {
             { k: "transactions", label: "รายการ", icon: <ListChecks className="w-4 h-4" /> },
             { k: "budgets", label: "งบ", icon: <Coins className="w-4 h-4" /> },
             { k: "goals", label: "เป้าหมาย", icon: <Target className="w-4 h-4" /> },
-            { k: "wishlist", label: "Wishlist", icon: <Heart className="w-4 h-4" /> },
             { k: "recurring", label: "รายการประจำ", icon: <Repeat className="w-4 h-4" /> },
             { k: "report", label: "รายงาน", icon: <FileBarChart className="w-4 h-4" /> },
             { k: "settings", label: "ตั้งค่า", icon: <Settings className="w-4 h-4" /> },
@@ -451,7 +447,6 @@ function MoneyFlowApp() {
               goals={goals.data || []}
               budgets={budgets.data || []}
               recurring={recurring.data || []}
-              wishlist={wishlist.data || []}
               onAdd={openAdd}
               onNavigate={(t) => setTab(t)}
               sections={{
@@ -469,11 +464,6 @@ function MoneyFlowApp() {
                   loading: goals.isLoading,
                   error: !!goals.error && !goals.data,
                   retry: () => goals.refetch(),
-                },
-                wishlist: {
-                  loading: wishlist.isLoading,
-                  error: !!wishlist.error && !wishlist.data,
-                  retry: () => wishlist.refetch(),
                 },
               }}
             />
@@ -499,13 +489,7 @@ function MoneyFlowApp() {
               ? <SkeletonRows rows={4} rowClass="h-[72px]" />
               : <LoadError onRetry={() => goals.refetch()} />
             : null}
-          {tab === "wishlist"
-            ? wishlist.data
-              ? <WishlistView currency={currency} items={wishlist.data} />
-              : wishlist.isLoading
-              ? <SkeletonRows rows={5} rowClass="h-[44px]" />
-              : <LoadError onRetry={() => wishlist.refetch()} />
-            : null}
+
           {tab === "recurring"
             ? recurring.data
               ? <RecurringView currency={currency} items={recurring.data} />
@@ -525,7 +509,6 @@ function MoneyFlowApp() {
               transactions={txs.data || []}
               budgets={budgets.data || []}
               goals={goals.data || []}
-              wishlist={wishlist.data || []}
               recurring={recurring.data || []}
               onBack={() => setTab("settings")}
             />
@@ -656,7 +639,6 @@ function DashboardView({
   goals,
   budgets,
   recurring,
-  wishlist,
   onAdd,
   onNavigate,
   sections,
@@ -666,14 +648,12 @@ function DashboardView({
   goals: any[];
   budgets: any[];
   recurring: any[];
-  wishlist: any[];
   onAdd: (t: TxType) => void;
   onNavigate: (tab: Tab) => void;
   sections?: {
     budgets?: SectionState;
     recurring?: SectionState;
     goals?: SectionState;
-    wishlist?: SectionState;
   };
 }) {
   const mtdExpense = transactions
@@ -889,53 +869,7 @@ function DashboardView({
         )}
       </div>
 
-      {/* Wishlist */}
-      <div
-        onClick={() => onNavigate("wishlist")}
-        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-semibold">รายการที่อยากได้</div>
-          <Heart className="w-4 h-4 text-muted-foreground" />
-        </div>
-        {sections?.wishlist?.error ? (
-          <LoadError onRetry={sections.wishlist.retry} />
-        ) : sections?.wishlist?.loading ? (
-          <SkeletonRows rows={4} rowClass="h-7" />
-        ) : wishlist.filter((w) => !w.bought).length === 0 ? (
-          <div className="text-xs text-muted-foreground">ยังไม่มีรายการที่อยากได้</div>
-        ) : (
-          <ul className="space-y-2">
-            {[...wishlist]
-              .filter((w) => !w.bought)
-              .sort((a, b) => {
-                const r: Record<string, number> = { high: 0, medium: 1, low: 2 };
-                return (r[a.priority] ?? 3) - (r[b.priority] ?? 3);
-              })
-              .slice(0, 5)
-              .map((w) => {
-                const pColor =
-                  w.priority === "high"
-                    ? "text-rose-500 bg-rose-500/10 border-rose-500/30"
-                    : w.priority === "medium"
-                    ? "text-amber-500 bg-amber-500/10 border-amber-500/30"
-                    : "text-sky-500 bg-sky-500/10 border-sky-500/30";
-                const pLabel = w.priority === "high" ? "สูง" : w.priority === "medium" ? "กลาง" : "ต่ำ";
-                return (
-                  <li key={w.id} className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium truncate flex-1 min-w-0">{w.name}</span>
-                    <span className={`shrink-0 text-[10px] border rounded-full px-1.5 py-0.5 ${pColor}`}>
-                      {pLabel}
-                    </span>
-                    <span className="text-sm font-bold tabular-nums shrink-0">
-                      {formatCurrency(toNumber(w.price), currency)}
-                    </span>
-                  </li>
-                );
-              })}
-          </ul>
-        )}
-      </div>
+
     </div>
   );
 }
@@ -1924,188 +1858,6 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
                 addAmt.mutate({ id: addMoneyId, amount: a });
               }}
               disabled={addAmt.isPending || !addMoneyAmount}
-            >
-              บันทึก
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-/* ----------------- WISHLIST ----------------- */
-
-function WishlistView({ currency, items }: { currency: string; items: any[] }) {
-  const utils = trpc.useUtils();
-  const { removingIds: removingWishes, animateRemove: animateRemoveWish } = useRemovingIds();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [priority, setPriority] = useState<Priority>("medium");
-
-  const create = trpc.wishlist.create.useMutation({
-    onMutate: async (vars) => {
-      await utils.wishlist.list.cancel();
-      const prev = utils.wishlist.list.getData();
-      utils.wishlist.list.setData(undefined, (old) => [
-        ...(old ?? []),
-        { id: Date.now(), ...vars, price: vars.price !== undefined ? String(vars.price) : null, bought: false } as any,
-      ]);
-      return { prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) utils.wishlist.list.setData(undefined, ctx.prev);
-      toast.error("เพิ่มรายการไม่สำเร็จ");
-    },
-    onSuccess: () => {
-      toast.success("เพิ่มรายการอยากได้แล้ว");
-      setOpen(false);
-      setName("");
-      setPrice("");
-    },
-    onSettled: () => utils.wishlist.list.invalidate(),
-  });
-  const remove = trpc.wishlist.remove.useMutation({
-    onMutate: async ({ id }) => {
-      await utils.wishlist.list.cancel();
-      const prev = utils.wishlist.list.getData();
-      utils.wishlist.list.setData(undefined, (old) => (old ?? []).filter((w) => w.id !== id));
-      return { prev };
-    },
-    onError: async (_err, vars, ctx) => {
-      const { succeeded, fresh } = await verifyDeleteSucceeded(
-        () => utils.wishlist.list.fetch(undefined, { staleTime: 0 }),
-        vars.id,
-      );
-      if (succeeded) {
-        utils.wishlist.list.setData(undefined, fresh);
-        toast.success("ลบแล้ว");
-        return;
-      }
-      if (ctx?.prev) utils.wishlist.list.setData(undefined, ctx.prev);
-      toast.error("ลบรายการไม่สำเร็จ");
-    },
-    onSuccess: () => toast.success("ลบแล้ว"),
-    onSettled: () => utils.wishlist.list.invalidate(),
-  });
-  const toggleBought = trpc.wishlist.toggleBought.useMutation({
-    onMutate: async ({ id }) => {
-      await utils.wishlist.list.cancel();
-      const prev = utils.wishlist.list.getData();
-      utils.wishlist.list.setData(undefined, (old) =>
-        (old ?? []).map((w) => (w.id === id ? { ...w, bought: !(w as any).bought } : w)),
-      );
-      return { prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) utils.wishlist.list.setData(undefined, ctx.prev);
-      toast.error("อัพเดตไม่สำเร็จ");
-    },
-    onSettled: () => utils.wishlist.list.invalidate(),
-  });
-
-  const pColor = (p: Priority) =>
-    p === "high" ? "text-rose-500 bg-rose-500/10 border-rose-500/30"
-      : p === "medium" ? "text-amber-500 bg-amber-500/10 border-amber-500/30"
-      : "text-sky-500 bg-sky-500/10 border-sky-500/30";
-
-  const sorted = [...items].sort((a, b) => {
-    // unbought first, then by priority
-    if ((a as any).bought !== (b as any).bought) return (a as any).bought ? 1 : -1;
-    const r = { high: 0, medium: 1, low: 2 } as any;
-    return (r[a.priority] ?? 3) - (r[b.priority] ?? 3);
-  });
-
-  const boughtCount = items.filter((w) => (w as any).bought).length;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          รายการที่อยากซื้อ
-          {boughtCount > 0 && (
-            <span className="ml-2 text-emerald-500 font-medium">✓ ซื้อแล้ว {boughtCount} รายการ</span>
-          )}
-        </div>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> เพิ่ม
-        </Button>
-      </div>
-      {sorted.length === 0 ? (
-        <Empty text="ว่างเปล่า — เพิ่มของที่อยากได้" />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {sorted.map((w) => {
-            const bought = !!(w as any).bought;
-            return (
-              <div
-                key={w.id}
-                className={`rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card mf-list-item flex items-center gap-3 transition-opacity ${removingWishes.has(w.id) ? "mf-card-removing" : bought ? "opacity-60" : ""}`}
-              >
-                <button
-                  onClick={() => toggleBought.mutate({ id: w.id })}
-                  className="shrink-0 text-xl"
-                  title={bought ? "ยกเลิกทำเครื่องหมาย" : "ทำเครื่องหมายว่าซื้อแล้ว"}
-                >
-                  {bought
-                    ? <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                    : <Circle className="w-6 h-6 text-muted-foreground/50" />
-                  }
-                </button>
-                <div className="flex-1 min-w-0">
-                  <div className={`font-semibold truncate ${bought ? "line-through text-muted-foreground" : ""}`}>
-                    {w.name}
-                  </div>
-                  <div className="text-xs text-muted-foreground">{formatCurrency(toNumber(w.price), currency)}</div>
-                </div>
-                <span className={`text-[11px] border rounded-full px-2 py-0.5 ${pColor(w.priority as Priority)}`}>
-                  {w.priority === "high" ? "สูง" : w.priority === "medium" ? "กลาง" : "ต่ำ"}
-                </span>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => animateRemoveWish(w.id, () => remove.mutate({ id: w.id }))}>
-                  <Trash2 className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>รายการที่อยากได้</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>ชื่อ</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div>
-              <Label>ราคา</Label>
-              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
-            </div>
-            <div>
-              <Label>ความสำคัญ</Label>
-              <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="high">สูง</SelectItem>
-                  <SelectItem value="medium">กลาง</SelectItem>
-                  <SelectItem value="low">ต่ำ</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              ยกเลิก
-            </Button>
-            <Button
-              onClick={() => create.mutate({ name, price: Number(price), priority })}
-              disabled={!name || !price || create.isPending}
             >
               บันทึก
             </Button>

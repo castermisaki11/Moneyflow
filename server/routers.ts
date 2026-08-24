@@ -7,13 +7,11 @@ import {
   createGoal,
   createRecurring,
   createTransaction,
-  createWish,
   deleteBudget,
   deleteGoal,
   deleteRecurring,
   deleteTransaction,
   deleteUser,
-  deleteWish,
   getSettings,
   getUserById,
   listBudgets,
@@ -22,12 +20,10 @@ import {
   listReminderLogs,
   listTransactions,
   listUsersForAdmin,
-  listWishlist,
   setRecurringNext,
   setUserRole,
   upsertSettings,
   updateTransaction,
-  toggleWishBought,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { botRouter } from "./_core/botRouter";
@@ -241,33 +237,6 @@ export const appRouter = router({
     remove: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(({ ctx, input }) => deleteGoal(ctx.user.id, input.id)),
-  }),
-
-  wishlist: router({
-    list: protectedProcedure.query(({ ctx }) => listWishlist(ctx.user.id)),
-    create: protectedProcedure
-      .input(
-        z.object({
-          name: z.string().min(1).max(200),
-          price: z.number().positive(),
-          priority: priorityEnum.default("medium"),
-        }),
-      )
-      .mutation(async ({ ctx, input }) => {
-        const id = await createWish({
-          userId: ctx.user.id,
-          name: input.name,
-          price: String(input.price) as any,
-          priority: input.priority,
-        });
-        return { id };
-      }),
-    remove: protectedProcedure
-      .input(z.object({ id: z.number().int().positive() }))
-      .mutation(({ ctx, input }) => deleteWish(ctx.user.id, input.id)),
-    toggleBought: protectedProcedure
-      .input(z.object({ id: z.number().int().positive() }))
-      .mutation(({ ctx, input }) => toggleWishBought(ctx.user.id, input.id)),
   }),
 
   recurring: router({
