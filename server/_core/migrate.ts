@@ -14,8 +14,12 @@ const SETUP_SQL = /* sql */ `
 CREATE TABLE IF NOT EXISTS app_config (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Legacy fix: earlier builds created this column as updated_at (snake_case)
+-- while the Drizzle schema expects "updatedAt" (camelCase).
+ALTER TABLE app_config ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE app_config DROP COLUMN IF EXISTS updated_at;
 
 -- ── Types ────────────────────────────────────────────────────────────────
 DO $$ BEGIN CREATE TYPE "role"     AS ENUM ('user','admin');              EXCEPTION WHEN duplicate_object THEN null; END $$;
