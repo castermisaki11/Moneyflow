@@ -2,7 +2,7 @@
 // v3 — Cache-first + Background Sync + IndexedDB offline queue
 // ────────────────────────────────────────────────────────────────────────────
 
-const CACHE = "moneyflow-v3";
+const CACHE = "moneyflow-v4"; // v4: new app icon
 const SYNC_TAG = "moneyflow-tx-sync";
 const DB_NAME = "moneyflow-offline";
 const DB_VERSION = 1;

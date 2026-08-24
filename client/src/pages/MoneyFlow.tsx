@@ -323,8 +323,10 @@ function MoneyFlowApp() {
 
       {/* Header */}
       <header className="relative z-10 px-3 sm:px-6 pt-4 sm:pt-5 pb-2 sm:pb-3 max-w-5xl mx-auto flex items-center gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="text-base sm:text-lg font-bold mf-gradient-text truncate">Satang</div>
+        <div className="min-w-0">
+          <span className="inline-flex items-center rounded-xl border border-border/70 bg-card/60 backdrop-blur px-3 py-1 shadow-sm">
+            <span className="text-base sm:text-lg font-bold mf-gradient-text truncate">Satang</span>
+          </span>
         </div>
         <div className="flex items-center shrink-0 gap-1">
           <NotificationBell items={notifications} />
