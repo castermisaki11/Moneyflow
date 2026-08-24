@@ -12,6 +12,7 @@ import {
   type WebVitalsSnapshot,
 } from "@/lib/webVitals";
 import { Activity, Database, Gauge, Loader2, RadioTower, Zap } from "lucide-react";
+import { UsersView } from "@/components/views/UsersView";
 
 /** Vital tile with rating color + threshold hint */
 function VitalTile({
@@ -358,6 +359,15 @@ export function MetricsView() {
         <p className="text-[11px] text-muted-foreground">
           Hit rate สูง = คำขออ่านข้อมูลส่วนใหญ่ตอบจาก memory โดยไม่ต้องแตะฐานข้อมูล
         </p>
+      </div>
+
+      {/* User management (รวมจากหน้า "ผู้ใช้" เดิม) */}
+      <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card space-y-3">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-primary" />
+          <div className="text-sm font-semibold">บัญชีผู้ใช้ทั้งหมด</div>
+        </div>
+        <UsersView />
       </div>
     </div>
   );

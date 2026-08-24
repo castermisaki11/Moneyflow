@@ -3,7 +3,7 @@ import TxFormDialog from "@/components/TxFormDialog";
 import { MonthlyReportView } from "@/components/views/MonthlyReportView";
 import { DataView } from "@/components/views/DataView";
 import { SettingsView } from "@/components/views/SettingsView";
-import { UsersView } from "@/components/views/UsersView";
+import { AccountView } from "@/components/views/AccountView";
 import { MetricsView } from "@/components/views/MetricsView";
 import { BotView } from "@/components/views/BotView";
 import { Button } from "@/components/ui/button";
@@ -79,11 +79,11 @@ import {
   Moon,
   Paperclip,
   Pencil,
+  CircleUserRound,
   Plus,
   Repeat,
   Search,
   Settings,
-  ShieldCheck,
   Sun,
   Target,
   Trash2,
@@ -148,7 +148,7 @@ type Tab =
   | "report"
   | "data"
   | "settings"
-  | "users"
+  | "account"
   | "metrics"
   | "bot";
 
@@ -412,10 +412,10 @@ function MoneyFlowApp() {
             { k: "goals", label: "เป้าหมาย", icon: <Target className="w-4 h-4" /> },
             { k: "recurring", label: "รายการประจำ", icon: <Repeat className="w-4 h-4" /> },
             { k: "settings", label: "ตั้งค่า", icon: <Settings className="w-4 h-4" /> },
+            { k: "account", label: "บัญชี", icon: <CircleUserRound className="w-4 h-4" /> },
             ...(isAdmin
               ? [
-                  { k: "users", label: "ผู้ใช้", icon: <ShieldCheck className="w-4 h-4" /> },
-                  { k: "metrics", label: "วัดผล", icon: <Activity className="w-4 h-4" /> },
+                  { k: "metrics", label: "วัดผล & ผู้ใช้", icon: <Activity className="w-4 h-4" /> },
                   { k: "bot", label: "Bot", icon: <Bot className="w-4 h-4" /> },
                 ]
               : []),
@@ -513,7 +513,7 @@ function MoneyFlowApp() {
             />
           )}
           {tab === "settings" && <SettingsView onOpenBackup={() => setTab("data")} />}
-          {tab === "users" && isAdmin && <UsersView />}
+          {tab === "account" && <AccountView />}
           {tab === "metrics" && isAdmin && <MetricsView />}
           {tab === "bot" && isAdmin && <BotView />}
         </div>
