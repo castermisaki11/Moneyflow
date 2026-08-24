@@ -145,7 +145,7 @@ export function BotView() {
 
   const d = overview.data;
   const linkedPct = d.totalUsers > 0 ? Math.round((d.linkedUsers / d.totalUsers) * 100) : 0;
-  const soonest = d.upcomingReminders[0];
+  const soonest = d.upcomingReminders?.[0];
 
   // Feature adoption among linked users — powers the "วัดผล" bars below.
   const usagePct = (n: number) => (d.linkedUsers > 0 ? Math.round((n / d.linkedUsers) * 100) : 0);
@@ -279,7 +279,14 @@ export function BotView() {
         )}
 
         {/* Custom scheduler settings — master switch + check frequency */}
-        <SchedulerSettingsCard config={d.schedulerConfig} />
+        <SchedulerSettingsCard
+          config={
+            d.schedulerConfig ?? {
+              enabled: true,
+              intervalMs: 60_000,
+            }
+          }
+        />
       </div>
 
       {/* Broadcast — send one message to every linked user */}
@@ -531,19 +538,21 @@ function fmtSeconds(total: number): string {
 function SchedulerSettingsCard({
   config,
 }: {
-  config: { enabled: boolean; intervalMs: number };
+  config?: { enabled: boolean; intervalMs: number } | null;
 }) {
   const utils = trpc.useUtils();
-  const [enabled, setEnabled] = useState(config.enabled);
-  const [seconds, setSeconds] = useState(Math.round(config.intervalMs / 1000));
+  // Safe defaults for responses/caches saved before this field existed
+  const enabled0 = config?.enabled ?? true;
+  const seconds0 = Math.round((config?.intervalMs ?? 60_000) / 1000);
+  const [enabled, setEnabled] = useState(enabled0);
+  const [seconds, setSeconds] = useState(seconds0);
 
   useEffect(() => {
-    setEnabled(config.enabled);
-    setSeconds(Math.round(config.intervalMs / 1000));
-  }, [config.enabled, config.intervalMs]);
+    setEnabled(enabled0);
+    setSeconds(seconds0);
+  }, [enabled0, seconds0]);
 
-  const initialSeconds = Math.round(config.intervalMs / 1000);
-  const dirty = enabled !== config.enabled || seconds !== initialSeconds;
+  const dirty = enabled !== enabled0 || seconds !== seconds0;
   const valid = Number.isFinite(seconds) && seconds >= 10 && seconds <= 86400;
 
   const save = trpc.bot.updateSchedulerConfig.useMutation({
