@@ -200,7 +200,12 @@ function useRemovingIds() {
 }
 
 function MoneyFlowApp() {
-  const [tab, setTab] = useState<Tab>("dashboard");
+  // Open a specific tab on first load when reached via a deep link
+  // (e.g. the post-login redirect "/?tab=account"). Defaults to the dashboard.
+  const [tab, setTab] = useState<Tab>(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    return requested === "account" ? "account" : "dashboard";
+  });
   const [addOpen, setAddOpen] = useState(false);
   const [addType, setAddType] = useState<TxType>("expense");
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
