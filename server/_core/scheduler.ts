@@ -127,11 +127,18 @@ export function startScheduler(): void {
   // (enabled + custom interval from the admin Bot page), and only fires a full
   // notification check when the configured interval has elapsed. This lets the
   // admin change the frequency at runtime without restarting timers.
+  //
+  // The next tick is anchored to an absolute clock boundary (a whole multiple
+  // of intervalMs from the epoch) rather than "intervalMs after the last run",
+  // so e.g. a 1h interval ticks at :00 every hour — not 1h after the moment the
+  // setting was last (re)configured/started (which would drift, e.g. set at
+  // 03:33 → first tick 04:33 instead of 04:00, firing on-time notifications late).
   void loadConfig(true);
   tick();
   setInterval(async () => {
     const cfg = await loadConfig();
-    const dueAt = (lastRunAt ?? 0) + cfg.intervalMs;
+    const intervalMs = cfg.intervalMs;
+    const dueAt = Math.floor((lastRunAt ?? Date.now()) / intervalMs) * intervalMs + intervalMs;
     nextScheduledTickAt = cfg.enabled ? Math.max(dueAt, Date.now()) : null;
     if (!cfg.enabled || Date.now() < dueAt) return;
     tick();
