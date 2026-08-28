@@ -184,14 +184,19 @@ async function checkUser(userId: number, dateStr: string, hour: number, dow: num
     // interval), not "N minutes since the previous one": e.g. armed at
     // 16:37 with interval=1h fires at 17:00:00, then 18:00, 19:00…
     let lastAt = state.lastIntervalReminderAt ?? 0;
-    if (!lastAt) {
-      // Just switched into interval mode: arm silently and wait for the
-      // next boundary instead of firing immediately.
-      lastAt = Date.now();
+    // (Re)anchor to a true clock boundary so reminders fire at aligned slots
+    // (e.g. every 1h → :00 exactly), never offset from when the user armed
+    // it or from a stale baseline left behind by a different interval. A valid
+    // baseline is always a whole multiple of intervalMs (epoch origin = boundary).
+    if (!lastAt || lastAt % intervalMs !== 0) {
+      // First arm, or the stored baseline drifted off the boundary: snap to
+      // the current slot instead of firing immediately, so the first nudge
+      // lands exactly on the next boundary (04:00, not 03:55).
+      lastAt = Math.floor(Date.now() / intervalMs) * intervalMs;
       state.lastIntervalReminderAt = lastAt;
       dirty = true;
     }
-    const nextSlotAt = Math.floor(lastAt / intervalMs) * intervalMs + intervalMs;
+    const nextSlotAt = lastAt + intervalMs;
     if (Date.now() >= nextSlotAt) {
       const { from, to } = periodRange("daily");
       const todaysTx = await listTransactions(userId, { from, to, limit: 1 });
