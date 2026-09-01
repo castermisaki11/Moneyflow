@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { CATEGORIES, CURRENCIES, type TxType } from "@/lib/money";
 import { trpc } from "@/lib/trpc";
-import { Bell, BellOff, ChevronRight, Database, Gem, Laptop, Lock, Moon, Plus, Send, Sun, Trash2, Unlink } from "lucide-react";
+import { Bell, ChevronRight, Database, Gem, Laptop, Lock, Moon, Plus, Sun, Trash2 } from "lucide-react";
 import PinSetupDialog from "@/components/PinSetupDialog";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -89,43 +89,9 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
   const { mode, setMode } = useTheme();
   const utils = trpc.useUtils();
   const cur = trpc.settings.get.useQuery();
-  const [pendingLink, setPendingLink] = useState<{ code: string; deepLink: string | null } | null>(null);
-  const tgStatus = trpc.telegram.status.useQuery(undefined, {
-    refetchInterval: (query) => (pendingLink && !query.state.data?.linked ? 3000 : false),
-  });
-  const tgUtils = trpc.useUtils();
-  const tgCreateLink = trpc.telegram.createLink.useMutation({
-    onSuccess: (res) => {
-      if (!res.configured) { toast.error("แอดมินยังไม่ได้ตั้งค่า Telegram bot"); return; }
-      if (res.code) setPendingLink({ code: res.code, deepLink: res.deepLink });
-    },
-    onError: () => toast.error("สร้างลิงก์เชื่อมต่อไม่สำเร็จ"),
-  });
-  const tgUnlink = trpc.telegram.unlink.useMutation({
-    onSuccess: () => { setPendingLink(null); toast.success("ยกเลิกการเชื่อมต่อ Telegram แล้ว"); tgUtils.telegram.status.invalidate(); },
-  });
-  const tgSendTest = trpc.telegram.sendTest.useMutation({
-    onSuccess: (res) => res.success ? toast.success("ส่งข้อความทดสอบแล้ว เช็ค Telegram ได้เลย") : toast.error("ส่งไม่สำเร็จ"),
-  });
-  const tgUpdateReminder = trpc.telegram.updateDailyReminder.useMutation({
-    onSuccess: () => tgUtils.telegram.status.invalidate(),
-    onError: () => toast.error("บันทึกไม่สำเร็จ"),
-  });
-  const tgUpdatePacing = trpc.telegram.updateDailyPacing.useMutation({
-    onSuccess: () => tgUtils.telegram.status.invalidate(),
-    onError: () => toast.error("บันทึกไม่สำเร็จ"),
-  });
-  const tgUpdateWeeklySummary = trpc.telegram.updateWeeklySummary.useMutation({
-    onSuccess: () => tgUtils.telegram.status.invalidate(),
-    onError: () => toast.error("บันทึกไม่สำเร็จ"),
-  });
 
   const pinStatus = trpc.security.status.useQuery();
   const [pinDialog, setPinDialog] = useState<"set" | "disable" | null>(null);
-
-  useEffect(() => {
-    if (tgStatus.data?.linked && pendingLink) setPendingLink(null);
-  }, [tgStatus.data?.linked, pendingLink]);
 
   const [currency, setCurrency] = useState<string>("THB");
   const [customCats, setCustomCats] = useState<CustomCats>(DEFAULT_CUSTOM);
@@ -169,7 +135,7 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
   };
 
   const saveNotif = (n: NotifSettings) => {
-    update.mutate({ notificationSettings: JSON.stringify(n) });
+    update.mutate({});
   };
 
   const addCategory = (type: TxType) => {
@@ -400,165 +366,6 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Telegram notifications — full width */}
-      <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card md:col-span-2">
-        <div className="flex items-center gap-2 mb-1">
-          <Send className="w-4 h-4" />
-          <div className="text-sm font-semibold">แจ้งเตือนผ่าน Telegram</div>
-        </div>
-        <div className="text-xs text-muted-foreground mb-4">
-          เชื่อมต่อ Telegram เพื่อรับแจ้งเตือนแม้ปิดแอปอยู่ — งบเกิน รายการประจำใกล้ถึงกำหนด เป้าหมายสำเร็จ และเตือนหากยังไม่ได้บันทึกรายการวันนี้
-        </div>
-
-        {tgStatus.data?.linked ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2">
-              <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
-                <Send className="w-3 h-3" /> เชื่อมต่อ Telegram แล้ว
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => tgSendTest.mutate()} disabled={tgSendTest.isPending}>
-                  ทดสอบส่ง
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => tgUnlink.mutate()} disabled={tgUnlink.isPending}>
-                  <Unlink className="w-3 h-3 mr-1" /> ยกเลิก
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">เตือนบันทึกรายการประจำวัน</Label>
-              <Switch
-                checked={tgStatus.data.dailyReminderEnabled}
-                onCheckedChange={(v) => tgUpdateReminder.mutate({ enabled: v })}
-              />
-            </div>
-            {tgStatus.data.dailyReminderEnabled && (
-              <div className="space-y-2 max-w-xs">
-                <Label className="text-xs font-medium">ความถี่</Label>
-                <Select
-                  value={tgStatus.data.dailyReminderMode === "interval" ? `interval:${tgStatus.data.dailyReminderIntervalMinutes}` : "daily"}
-                  onValueChange={(v) => {
-                    if (v === "daily") tgUpdateReminder.mutate({ mode: "daily" });
-                    else tgUpdateReminder.mutate({ mode: "interval", intervalMinutes: Number(v.split(":")[1]) });
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">รายวัน (เลือกเวลาได้)</SelectItem>
-                    <SelectItem value="interval:15">ทุก 15 นาที</SelectItem>
-                    <SelectItem value="interval:30">ทุก 30 นาที</SelectItem>
-                    <SelectItem value="interval:60">ทุก 1 ชั่วโมง</SelectItem>
-                    <SelectItem value="interval:120">ทุก 2 ชั่วโมง</SelectItem>
-                    <SelectItem value="interval:240">ทุก 4 ชั่วโมง</SelectItem>
-                  </SelectContent>
-                </Select>
-                {tgStatus.data.dailyReminderMode !== "interval" ? (
-                  <>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>เตือนตอน</span>
-                      <span className="font-medium text-foreground">{tgStatus.data.dailyReminderHour}:00 น.</span>
-                    </div>
-                    <Slider
-                      min={0}
-                      max={23}
-                      step={1}
-                      value={[tgStatus.data.dailyReminderHour]}
-                      onValueChange={([v]) => tgUpdateReminder.mutate({ hour: v })}
-                      className="w-full"
-                    />
-                  </>
-                ) : (
-                  <div className="text-[10px] text-muted-foreground">
-                    เตือนซ้ำทุกช่วงเวลา จนกว่าวันนี้จะมีรายการบันทึก — ปรับค่าอื่นได้ในแชท เช่น <code>/interval 45</code>
-                  </div>
-                )}
-                <div className="text-[10px] text-muted-foreground">จะเตือนก็ต่อเมื่อยังไม่มีรายการที่บันทึกในวันนั้นเลย</div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">เตือนเงินเหลือใช้ต่อวัน</Label>
-              <Switch
-                checked={tgStatus.data.dailyPacingEnabled}
-                onCheckedChange={(v) => tgUpdatePacing.mutate({ enabled: v })}
-              />
-            </div>
-            {tgStatus.data.dailyPacingEnabled && (
-              <div className="space-y-2 max-w-xs">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>ส่งตอน</span>
-                  <span className="font-medium text-foreground">{tgStatus.data.dailyPacingHour}:00 น.</span>
-                </div>
-                <Slider
-                  min={0}
-                  max={23}
-                  step={1}
-                  value={[tgStatus.data.dailyPacingHour]}
-                  onValueChange={([v]) => tgUpdatePacing.mutate({ hour: v })}
-                  className="w-full"
-                />
-                <div className="text-[10px] text-muted-foreground">
-                  เอางบรายเดือนที่เหลือ หารด้วยจำนวนวันที่เหลือในเดือน — หรือพิมพ์ "วันนี้ใช้ได้เท่าไหร่" ในแชทถามได้ทุกเมื่อ
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">สรุปรายสัปดาห์ (ทุกวันอาทิตย์)</Label>
-              <Switch
-                checked={tgStatus.data.weeklySummaryEnabled}
-                onCheckedChange={(v) => tgUpdateWeeklySummary.mutate({ enabled: v })}
-              />
-            </div>
-            {tgStatus.data.weeklySummaryEnabled && (
-              <div className="space-y-2 max-w-xs">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>ส่งตอน</span>
-                  <span className="font-medium text-foreground">{tgStatus.data.weeklySummaryHour}:00 น.</span>
-                </div>
-                <Slider
-                  min={0}
-                  max={23}
-                  step={1}
-                  value={[tgStatus.data.weeklySummaryHour]}
-                  onValueChange={([v]) => tgUpdateWeeklySummary.mutate({ hour: v })}
-                  className="w-full"
-                />
-                <div className="text-[10px] text-muted-foreground">
-                  รวมรายรับ-รายจ่าย-เงินออม และหมวดที่ใช้จ่ายเยอะสุดของสัปดาห์นั้น — หรือพิมพ์ "สรุปสัปดาห์นี้" ในแชทถามได้ทุกเมื่อ
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {pendingLink ? (
-              <div className="space-y-2">
-                <div className="text-xs text-muted-foreground">
-                  เปิด Telegram แล้วกด Start เพื่อเชื่อมต่อ (รหัส <span className="font-mono font-semibold text-foreground">{pendingLink.code}</span> จะหมดอายุใน 10 นาที)
-                </div>
-                <div className="flex gap-2">
-                  {pendingLink.deepLink && (
-                    <Button size="sm" onClick={() => window.open(pendingLink.deepLink!, "_blank")}>
-                      เปิด Telegram
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => setPendingLink(null)}>ยกเลิก</Button>
-                </div>
-                <div className="text-[10px] text-muted-foreground">กำลังรอการยืนยันจาก Telegram…</div>
-              </div>
-            ) : (
-              <Button size="sm" onClick={() => tgCreateLink.mutate()} disabled={tgCreateLink.isPending}>
-                <Send className="w-4 h-4 mr-1.5" /> เชื่อมต่อ Telegram
-              </Button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* PIN Lock */}

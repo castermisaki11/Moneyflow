@@ -10,27 +10,29 @@ import { sql } from "drizzle-orm";
  */
 
 const SETUP_SQL = /* sql */ `
--- ── App config (runtime key/value, e.g. scheduler settings) ─────────────
+-- ── App config (runtime key/value) ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS app_config (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
   "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
--- Legacy fix: earlier builds created this column as updated_at (snake_case)
--- while the Drizzle schema expects "updatedAt" (camelCase).
 ALTER TABLE app_config ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now();
 ALTER TABLE app_config DROP COLUMN IF EXISTS updated_at;
 
--- Wishlist feature removed in v1.0.7 — retire the table and its index
+-- Wishlist feature removed — retire the table
 DROP TABLE IF EXISTS "wishlist";
+
+-- Drop Telegram bot-related tables (removed in v11.0.0)
+DROP TABLE IF EXISTS "attachments" CASCADE;
+DROP TABLE IF EXISTS "category_feedback" CASCADE;
+DROP TABLE IF EXISTS "reminder_log" CASCADE;
+DROP TABLE IF EXISTS "bot_broadcast_log" CASCADE;
 
 -- ── Types ────────────────────────────────────────────────────────────────
 DO $$ BEGIN CREATE TYPE "role"     AS ENUM ('user','admin');              EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "tx_type"  AS ENUM ('income','expense','saving'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "period"   AS ENUM ('daily','weekly','monthly','yearly'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "freq"     AS ENUM ('daily','weekly','monthly','yearly'); EXCEPTION WHEN duplicate_object THEN null; END $$;
--- Add any enum values that were added to schema.ts later, to existing DBs that
--- were created before those values existed (safe no-op if already present).
 DO $$ BEGIN ALTER TYPE "freq"   ADD VALUE IF NOT EXISTS 'daily';  EXCEPTION WHEN others THEN null; END $$;
 DO $$ BEGIN ALTER TYPE "period" ADD VALUE IF NOT EXISTS 'daily';  EXCEPTION WHEN others THEN null; END $$;
 DO $$ BEGIN ALTER TYPE "period" ADD VALUE IF NOT EXISTS 'weekly'; EXCEPTION WHEN others THEN null; END $$;
@@ -54,10 +56,8 @@ ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email"             varchar(320) UN
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "passwordHash"      varchar(255);
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resetToken"        varchar(255);
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resetTokenExpires" timestamp;
--- OAuth profile picture + manual display-name flag
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "pictureUrl"       text;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "nameCustomized"   boolean NOT NULL DEFAULT false;
--- Make email and passwordHash nullable for Discord OAuth users
 ALTER TABLE "users" ALTER COLUMN "email" DROP NOT NULL;
 ALTER TABLE "users" ALTER COLUMN "passwordHash" DROP NOT NULL;
 
@@ -99,7 +99,6 @@ CREATE TABLE IF NOT EXISTS "goals" (
 );
 CREATE INDEX IF NOT EXISTS "goals_user_idx" ON "goals" ("userId");
 
-
 CREATE TABLE IF NOT EXISTS "recurring" (
   "id"        serial        PRIMARY KEY,
   "userId"    integer       NOT NULL,
@@ -114,94 +113,30 @@ CREATE TABLE IF NOT EXISTS "recurring" (
 );
 CREATE INDEX IF NOT EXISTS "recurring_user_idx" ON "recurring" ("userId");
 
-CREATE TABLE IF NOT EXISTS "attachments" (
-  "id"            serial        PRIMARY KEY,
-  "userId"        integer       NOT NULL,
-  "transactionId" integer       NOT NULL,
-  "fileKey"       varchar(400)  NOT NULL,
-  "fileUrl"       varchar(500)  NOT NULL,
-  "fileName"      varchar(300)  NOT NULL,
-  "mimeType"      varchar(120)  NOT NULL,
-  "sizeBytes"     integer       NOT NULL,
-  "createdAt"     timestamp     NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS "att_user_idx" ON "attachments" ("userId");
-CREATE INDEX IF NOT EXISTS "att_tx_idx"   ON "attachments" ("transactionId");
-
 CREATE TABLE IF NOT EXISTS "settings" (
   "userId"    integer    PRIMARY KEY,
   "currency"  varchar(8) NOT NULL DEFAULT 'THB',
   "theme"     "theme"    NOT NULL DEFAULT 'dark',
   "updatedAt" timestamp  NOT NULL DEFAULT now()
 );
--- ตั้งค่าที่เพิ่มทีหลัง (คอลัมน์เดิมของ settings อาจยังไม่มีในฐานข้อมูลเก่า)
 ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "myAccountNumber" varchar(40);
 ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "customCategories" text;
 ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "deletedDefaultCategories" text;
-ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "notificationSettings" text;
--- PIN lock (หน้าเว็บ): salt:hash ของรหัส PIN, null = ปิดอยู่
 ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "pinHash" varchar(255);
+-- Drop notificationSettings column if it exists (Telegram bot removed)
+ALTER TABLE "settings" DROP COLUMN IF EXISTS "notificationSettings";
 
--- category_feedback: log ว่า Telegram bot เดา category ถูกไหม (จาก ✅/❌ ใน bot)
--- ตารางนี้ไม่เคยอยู่ใน SETUP_SQL มาก่อน แม้จะมีอยู่ใน drizzle/schema.ts และถูกเรียกใช้แล้ว
--- (server/_core/telegram.ts logCategoryFeedback, server/db.ts deleteUser) — insert เดิม
--- เงียบเพราะมี .catch() คลุมไว้ แต่ deleteUser ที่ลบตารางนี้ตรงๆ ไม่ได้ครอบ ทำให้เจอ error
--- "relation category_feedback does not exist" ชัดเจนตอนลบผู้ใช้
-CREATE TABLE IF NOT EXISTS "category_feedback" (
-  "id"              serial       PRIMARY KEY,
-  "userId"          integer      NOT NULL,
-  "guessedCategory" varchar(120) NOT NULL,
-  "correct"         boolean      NOT NULL,
-  "createdAt"       timestamp    NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS "category_feedback_user_idx" ON "category_feedback" ("userId");
-
--- sync_event_log: persisted history of real-time-sync (SSE) events, so the
--- Metrics page can show a trend over time instead of only in-memory counters
--- that reset on every restart/deploy. Rows are pruned automatically (see
--- server/_core/syncLog.ts) so this stays small.
 CREATE TABLE IF NOT EXISTS "sync_event_log" (
   "id"        serial      PRIMARY KEY,
   "entity"    varchar(64) NOT NULL,
   "emittedAt" timestamp   NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "sync_event_log_emitted_idx" ON "sync_event_log" ("emittedAt");
-
--- reminder_log: logs each time the user taps "เสร็จแล้ว" on a fired custom
--- reminder (see scheduler.ts / handleReminderDone in telegram.ts). This table
--- exists in drizzle/schema.ts and is queried directly by server/db.ts, but was
--- missing from this SETUP_SQL — added here so it's created automatically too.
-CREATE TABLE IF NOT EXISTS "reminder_log" (
-  "id"           serial       PRIMARY KEY,
-  "userId"       integer      NOT NULL,
-  "reminderText" varchar(500) NOT NULL,
-  "firedAt"      bigint       NOT NULL,
-  "completedAt"  timestamp    NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS "reminder_log_user_idx" ON "reminder_log" ("userId");
-
--- bot_broadcast_log: history of admin "send to everyone linked" messages
--- (server/_core/botRouter.ts "broadcast" mutation), shown on the admin Bot
--- page. One row per broadcast attempt — sentCount/failedCount are totals,
--- not per-recipient rows.
-CREATE TABLE IF NOT EXISTS "bot_broadcast_log" (
-  "id"           serial        PRIMARY KEY,
-  "adminUserId"  integer       NOT NULL,
-  "text"         varchar(4000) NOT NULL,
-  "targetCount"  integer       NOT NULL,
-  "sentCount"    integer       NOT NULL,
-  "failedCount"  integer       NOT NULL,
-  "createdAt"    timestamp     NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS "bot_broadcast_log_created_idx" ON "bot_broadcast_log" ("createdAt");
 `;
 
 const RENAME_SQL = /* sql */ `
 DO $$
 BEGIN
-  -- Helper function to safely rename columns
-  -- Usage: IF old_exists AND NOT new_exists THEN RENAME;
-  
   -- users
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='open_id') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='openId') THEN ALTER TABLE "users" RENAME COLUMN "open_id" TO "openId"; END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='openid') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='openId') THEN ALTER TABLE "users" RENAME COLUMN "openid" TO "openId"; END IF;
@@ -257,24 +192,6 @@ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='createdat') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='createdAt') THEN ALTER TABLE "recurring" RENAME COLUMN "createdat" TO "createdAt"; END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='updated_at') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='updatedAt') THEN ALTER TABLE "recurring" RENAME COLUMN "updated_at" TO "updatedAt"; END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='updatedat') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recurring' AND column_name='updatedAt') THEN ALTER TABLE "recurring" RENAME COLUMN "updatedat" TO "updatedAt"; END IF;
-
-  -- attachments
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='user_id') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='userId') THEN ALTER TABLE "attachments" RENAME COLUMN "user_id" TO "userId"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='userid') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='userId') THEN ALTER TABLE "attachments" RENAME COLUMN "userid" TO "userId"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='transaction_id') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='transactionId') THEN ALTER TABLE "attachments" RENAME COLUMN "transaction_id" TO "transactionId"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='transactionid') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='transactionId') THEN ALTER TABLE "attachments" RENAME COLUMN "transactionid" TO "transactionId"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='file_key') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='fileKey') THEN ALTER TABLE "attachments" RENAME COLUMN "file_key" TO "fileKey"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='filekey') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='fileKey') THEN ALTER TABLE "attachments" RENAME COLUMN "filekey" TO "fileKey"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='file_url') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='fileUrl') THEN ALTER TABLE "attachments" RENAME COLUMN "file_url" TO "fileUrl"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='fileurl') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='fileUrl') THEN ALTER TABLE "attachments" RENAME COLUMN "fileurl" TO "fileUrl"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='file_name') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='fileName') THEN ALTER TABLE "attachments" RENAME COLUMN "file_name" TO "fileName"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='filename') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='fileName') THEN ALTER TABLE "attachments" RENAME COLUMN "filename" TO "fileName"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='mime_type') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='mimeType') THEN ALTER TABLE "attachments" RENAME COLUMN "mime_type" TO "mimeType"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='mimetype') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='mimeType') THEN ALTER TABLE "attachments" RENAME COLUMN "mimetype" TO "mimeType"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='size_bytes') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='sizeBytes') THEN ALTER TABLE "attachments" RENAME COLUMN "size_bytes" TO "sizeBytes"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='sizebytes') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='sizeBytes') THEN ALTER TABLE "attachments" RENAME COLUMN "sizebytes" TO "sizeBytes"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='created_at') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='createdAt') THEN ALTER TABLE "attachments" RENAME COLUMN "created_at" TO "createdAt"; END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='createdat') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attachments' AND column_name='createdAt') THEN ALTER TABLE "attachments" RENAME COLUMN "createdat" TO "createdAt"; END IF;
 
   -- settings
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='settings' AND column_name='user_id') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='settings' AND column_name='userId') THEN ALTER TABLE "settings" RENAME COLUMN "user_id" TO "userId"; END IF;

@@ -23,21 +23,6 @@ export const ENV = {
   // so you can add more admins just by editing the env var — no code
   // change or redeploy of logic needed.
   adminDiscordIds: parseIdList(process.env.ADMIN_DISCORD_IDS),
-  // Telegram bot notification system — see TELEGRAM_SETUP.md
-  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
-  telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME ?? "",
-  // Optional: chat id that receives admin/system notifications (system.notifyOwner)
-  telegramAdminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID ?? "",
-  // Optional shared secret for the external cron ping endpoint (/api/cron/check-notifications).
-  // On hosts that spin the process down when idle (e.g. Render free tier), the in-process
-  // setInterval scheduler stops too, so scheduled reminders silently never fire until
-  // something wakes the server back up. Point an external cron (cron-job.org, UptimeRobot,
-  // GitHub Actions, ...) at that endpoint every 5-10 min to both wake the server and run the
-  // check. If unset, the endpoint is open — set it in production to stop randoms from hitting it.
-  cronSecret: process.env.CRON_SECRET ?? "",
-  // Public HTTPS base URL of this deployment (e.g. https://moneyflow.onrender.com).
-  // Enables the Telegram WebApp button ("🌐 เปิด MoneyFlow") in the chat.
-  publicAppUrl: process.env.PUBLIC_APP_URL ?? "",
 };
 
 /**

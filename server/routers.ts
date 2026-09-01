@@ -17,7 +17,6 @@ import {
   listBudgets,
   listGoals,
   listRecurring,
-  listReminderLogs,
   listTransactions,
   listUsersForAdmin,
   setRecurringNext,
@@ -27,11 +26,8 @@ import {
   updateUserProfile,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { botRouter } from "./_core/botRouter";
 import { securityRouter } from "./_core/securityRouter";
 import { systemRouter } from "./_core/systemRouter";
-import { telegramRouter } from "./_core/telegramRouter";
-import { mergeNotifJsonStrings } from "./_core/notifSettings";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
 // Helper function to extract salt and hash from stored password
@@ -60,9 +56,7 @@ function advanceDate(nextDate: number, freq: "daily" | "weekly" | "monthly" | "y
 
 export const appRouter = router({
   system: systemRouter,
-  telegram: telegramRouter,
   security: securityRouter,
-  bot: botRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -92,10 +86,6 @@ export const appRouter = router({
   admin: router({
     listUsers: adminProcedure.query(() => listUsersForAdmin()),
 
-    listReminderLogs: adminProcedure
-      .input(z.object({ userId: z.number().int().positive() }))
-      .query(({ input }) => listReminderLogs(input.userId)),
-
     // Prevent an admin from locking themselves (or the last admin) out by
     // accident — the server enforces this, not just the UI.
     setUserRole: adminProcedure
@@ -114,10 +104,6 @@ export const appRouter = router({
       }),
 
     // Irreversible — wipes the user's account and every row of their data.
-    // Server-side guardrails mirror setUserRole: can't be used to delete
-    // yourself (avoids an admin accidentally locking everyone out mid-session)
-    // or an admin account (must be demoted to "user" first, so removal is
-    // always a deliberate two-step action).
     deleteUser: adminProcedure
       .input(z.object({ userId: z.number().int().positive() }))
       .mutation(async ({ ctx, input }) => {
@@ -304,7 +290,6 @@ export const appRouter = router({
   settings: router({
     get: protectedProcedure.query(async ({ ctx }) => {
       const s = await getSettings(ctx.user.id);
-      // ไม่ส่ง pinHash ออกไปที่ client เด็ดขาด (ใช้ security.status แทนสำหรับเช็คว่าตั้ง PIN ไว้หรือยัง)
       const { pinHash: _pinHash, ...rest } = (s ?? {}) as any;
       return Object.keys(rest).length
         ? rest
@@ -315,7 +300,6 @@ export const appRouter = router({
             myAccountNumber: null,
             customCategories: null,
             deletedDefaultCategories: null,
-            notificationSettings: null,
           };
     }),
     update: protectedProcedure
@@ -326,7 +310,6 @@ export const appRouter = router({
           myAccountNumber: z.string().max(40).optional().nullable(),
           customCategories: z.string().optional().nullable(),
           deletedDefaultCategories: z.string().optional().nullable(),
-          notificationSettings: z.string().optional().nullable(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -338,13 +321,6 @@ export const appRouter = router({
           myAccountNumber: input.myAccountNumber !== undefined ? input.myAccountNumber : ((current as any)?.myAccountNumber ?? null),
           customCategories: input.customCategories !== undefined ? input.customCategories : (current?.customCategories ?? null),
           deletedDefaultCategories: input.deletedDefaultCategories !== undefined ? input.deletedDefaultCategories : ((current as any)?.deletedDefaultCategories ?? null),
-          // Merge (not overwrite) so server-managed fields — Telegram link state,
-          // daily-reminder settings, dedupe bookkeeping — survive edits made from
-          // the client's narrower notification-preferences form.
-          notificationSettings: input.notificationSettings !== undefined
-            ? mergeNotifJsonStrings((current as any)?.notificationSettings, input.notificationSettings)
-            : ((current as any)?.notificationSettings ?? null),
-          // การตั้งค่า PIN แก้ผ่าน security.setPin/disablePin เท่านั้น — เก็บค่าเดิมไว้เสมอ
           pinHash: (current as any)?.pinHash ?? null,
         } as any);
         const updated = await getSettings(ctx.user.id);

@@ -18,8 +18,6 @@ pnpm install
 |---|---|---|
 | `DATABASE_URL` | ✅ | Connection string ของ PostgreSQL เช่น `postgres://user:pass@host:5432/moneyflow` |
 | `JWT_SECRET` | ✅ | Secret สำหรับ sign JWT (auth ของเว็บ) |
-| `TELEGRAM_BOT_TOKEN` | ⬜ | Token จาก [@BotFather](https://t.me/BotFather) — **ไม่ตั้ง = bot จะ no-op แต่เว็บยังรันได้ปกติ** |
-| `TELEGRAM_ADMIN_CHAT_ID` | ⬜ | Chat ID ของแอดมิน — ใช้รับ notification ระบบผ่าน `notifyOwner()` |
 | `PORT` | ⬜ | Port ของ server (default ตาม host) |
 | `NODE_ENV` | ⬜ | `development` / `production` (set ให้อัตโนมัติโดย scripts) |
 
@@ -47,8 +45,6 @@ pnpm format       # prettier --write .
    - enum value ใหม่ → `ALTER TYPE ... ADD VALUE IF NOT EXISTS ...`
 3. Commit — deploy ถัดไปจะ apply ให้อัตโนมัติ
 
-> `pnpm db:push` (drizzle-kit generate + migrate) มีไว้เป็น optional local-dev convenience เท่านั้น ไม่ได้เป็นส่วนหนึ่งของ deploy flow
-
 รายละเอียดเพิ่มเติมใน [`../drizzle/README.md`](../drizzle/README.md)
 
 ## Workflow การพัฒนา
@@ -71,5 +67,4 @@ pnpm format       # prettier --write .
 
 - Tailwind CSS ใช้ **v4** (ผ่าน `@tailwindcss/vite` plugin) + `tw-animate-css`
 - React Query cache persist ลง localStorage ผ่าน `query-sync-storage-persister`
-- Bot ใช้ long polling — ไม่ต้องตั้ง webhook, ไม่ต้อง expose public URL ตอน dev
 - เวลาทั้งระบบคำนวณบน timezone **Asia/Bangkok**

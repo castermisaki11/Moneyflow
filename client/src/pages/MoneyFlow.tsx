@@ -4,7 +4,7 @@ import { DataView } from "@/components/views/DataView";
 import { SettingsView } from "@/components/views/SettingsView";
 import { AccountView } from "@/components/views/AccountView";
 import { MetricsView } from "@/components/views/MetricsView";
-import { BotView } from "@/components/views/BotView";
+
 import { Button } from "@/components/ui/button";
 import {
   LoadError,
@@ -61,7 +61,6 @@ import { trpc } from "@/lib/trpc";
 import {
   Activity,
   BarChart3,
-  Bot,
   CheckCircle2,
   ChevronRight,
   Circle,
@@ -142,8 +141,7 @@ type Tab =
   | "data"
   | "settings"
   | "account"
-  | "metrics"
-  | "bot";
+  | "metrics";
 
 export default function MoneyFlowPage() {
   // Register service worker for PWA
@@ -338,7 +336,6 @@ function MoneyFlowApp() {
             ...(isAdmin
               ? [
                   { k: "metrics", label: "วัดผล & ผู้ใช้", icon: <Activity className="w-4 h-4" /> },
-                  { k: "bot", label: "Bot", icon: <Bot className="w-4 h-4" /> },
                 ]
               : []),
           ].map((t) => (
@@ -429,7 +426,6 @@ function MoneyFlowApp() {
           {tab === "settings" && <SettingsView onOpenBackup={() => setTab("data")} />}
           {tab === "account" && <AccountView />}
           {tab === "metrics" && isAdmin && <MetricsView />}
-          {tab === "bot" && isAdmin && <BotView />}
         </div>
       </main>
 

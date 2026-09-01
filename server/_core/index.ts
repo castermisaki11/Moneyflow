@@ -10,27 +10,13 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { runMigrations } from "./migrate";
-import { startTelegramPolling } from "./telegram";
-import { linkTelegramChat } from "./notifSettings";
-import { startScheduler, runNotificationChecks } from "./scheduler";
-import { ENV } from "./env";
 import { subscribeUser, registerConnection } from "./events";
 import { signJwt, signRefreshJwt, verifyJwt } from "./jwt";
 import { COOKIE_NAME, REFRESH_COOKIE_NAME, SEVEN_DAYS_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./cookies";
-import { getAttachmentById } from "../db";
-import { readAttachmentFile } from "./attachmentStore";
-import { loginFromTelegramInitData } from "./telegramWebapp";
 
 async function startServer() {
   await runMigrations();
-
-  // Telegram notification system — no-op if TELEGRAM_BOT_TOKEN isn't set.
-  // Long-polling handles /start <code> account-linking messages; the
-  // scheduler runs the periodic checks (daily reminder, budget, recurring,
-  // goal alerts) and pushes them to each linked user's chat.
-  startTelegramPolling((userId, chatId) => linkTelegramChat(userId, chatId));
-  startScheduler();
 
   const app = express();
   const server = createServer(app);
@@ -61,85 +47,8 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
 
-  // Telegram WebApp mini-app login: the client sends initData from
-  // window.Telegram.WebApp; we verify its signature with the bot token and,
-  // if that Telegram user has a linked MoneyFlow account, issue a normal
-  // session cookie — the app opens inside Telegram already logged in.
-  app.post("/api/auth/telegram-webapp", express.json(), async (req, res) => {
-    try {
-      const initData = String(req.body?.initData ?? "");
-      const account = await loginFromTelegramInitData(initData);
-      if (!account) return res.status(401).json({ ok: false });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, await signJwt(account.moneyflowUserId), {
-        ...cookieOptions,
-        maxAge: SEVEN_DAYS_MS,
-      });
-      res.cookie(REFRESH_COOKIE_NAME, await signRefreshJwt(account.moneyflowUserId), {
-        ...cookieOptions,
-        maxAge: SEVEN_DAYS_MS,
-      });
-      return res.json({ ok: true });
-    } catch (err) {
-      console.error("telegram-webapp login failed:", err);
-      return res.status(500).json({ ok: false });
-    }
-  });
-
-  // Receipt photos sent via the Telegram bot. Authenticated: the session
-  // cookie's userId must match the attachment's owner.
-  app.get("/api/attachments/:id", async (req, res) => {
-    try {
-      const token = req.cookies?.[COOKIE_NAME];
-      const session = token ? await verifyJwt(token) : null;
-      if (!session) return res.status(401).json({ error: "unauthorized" });
-
-      const id = Number(req.params.id);
-      if (!Number.isInteger(id)) return res.status(400).json({ error: "bad id" });
-
-      const att = await getAttachmentById(id);
-      if (!att || att.userId !== session.userId) return res.status(404).json({ error: "not found" });
-
-      const buffer = await readAttachmentFile(att.fileKey);
-      if (!buffer) return res.status(404).json({ error: "file missing" });
-
-      res.setHeader("Content-Type", att.mimeType);
-      // Receipt images are immutable per id: serve from cache and keep serving
-      // stale while revalidating — instant reopen even on a slow connection.
-      res.setHeader("Cache-Control", "private, max-age=86400, stale-while-revalidate=604800");
-      res.send(buffer);
-    } catch (err) {
-      console.error("attachment route failed:", err);
-      res.status(500).json({ error: "internal" });
-    }
-  });
-
-  // External-cron wake/check endpoint. On hosts that idle the process when no traffic
-  // arrives (e.g. Render free tier), the in-process setInterval scheduler pauses along
-  // with everything else, so a reminder due while the server was asleep never fires.
-  // Point an external cron (cron-job.org, UptimeRobot, GitHub Actions schedule, ...) at
-  // this URL every 5-10 min — the inbound request wakes the dyno and this handler runs
-  // the same checks the scheduler would have. Set CRON_SECRET in production so it can't
-  // be triggered by anyone who finds the URL.
-  app.get("/api/cron/check-notifications", async (req, res) => {
-    if (ENV.cronSecret && req.query.secret !== ENV.cronSecret) {
-      res.status(401).json({ ok: false, error: "unauthorized" });
-      return;
-    }
-    try {
-      await runNotificationChecks();
-      res.json({ ok: true, checkedAt: new Date().toISOString() });
-    } catch (err) {
-      console.warn("[Cron] check-notifications failed:", err);
-      res.status(500).json({ ok: false });
-    }
-  });
-
   // Real-time sync: web tabs (and the native app) hold this connection open and
-  // get pushed an event the instant any of their data changes server-side — most
-  // importantly when the Telegram bot adds/edits a transaction from outside the
-  // open tab, which the client's own cache invalidation can't see on its own.
+  // get pushed an event the instant any of their data changes server-side.
   // See server/_core/events.ts + cache/index.ts (invalidateUser).
   app.get("/api/events", async (req, res) => {
     let userId: number | undefined;
@@ -160,7 +69,7 @@ async function startServer() {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      "X-Accel-Buffering": "no", // เผื่อรันหลัง nginx/reverse proxy ที่ชอบบัฟเฟอร์ response
+      "X-Accel-Buffering": "no",
     });
     res.write("retry: 3000\n\n");
 
@@ -175,10 +84,6 @@ async function startServer() {
     };
 
     const unsubscribe = subscribeUser(userId, (entity) => {
-      // emittedAt: ใช้คำนวณ latency ฝั่ง client (หน้า admin > วัดผล)
-      // ห่อ res.write ด้วย try/catch เอง (เป็นด่านที่ 2 ต่อจาก try/catch ใน
-      // emitUserEvent) — ถ้า connection นี้ตายไปแล้วแต่ยังไม่ทัน cleanup ก็
-      // เก็บกวาดทิ้งเลย แทนที่จะปล่อยให้ error หลุดออกไปรบกวน request อื่น
       try {
         res.write(`event: sync\ndata: ${JSON.stringify({ entity, emittedAt: Date.now() })}\n\n`);
       } catch (err) {
@@ -187,7 +92,6 @@ async function startServer() {
       }
     });
 
-    // ping กันบาง proxy/เบราว์เซอร์ตัดการเชื่อมต่อตอนไม่มี traffic นานๆ
     const ping = setInterval(() => {
       try {
         res.write(": ping\n\n");
@@ -213,8 +117,6 @@ async function startServer() {
     serveStatic(app);
   }
 
-  // On Render (and most PaaS) the platform injects PORT and expects the app
-  // to bind exactly that port. Never fall back to a different port in production.
   const port = parseInt(process.env.PORT || "3000");
 
   server.listen(port, "0.0.0.0", () => {

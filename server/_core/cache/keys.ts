@@ -26,21 +26,6 @@ export function userSessionKey(userId: number): string {
   return `userSession:${userId}`;
 }
 
-/** Key for the Telegram chatId → userId reverse lookup. */
-export function telegramChatKey(chatId: string): string {
-  return `telegramChat:${chatId}`;
-}
-
-/** Prefix for cached, pre-formatted Telegram summary messages for one user (all periods). */
-export function telegramSummaryPrefix(userId: number): string {
-  return `telegramSummary:${userId}`;
-}
-
-/** Key for one cached Telegram summary message (e.g. "daily", "weekly"). */
-export function telegramSummaryKey(userId: number, kind: string): string {
-  return `${telegramSummaryPrefix(userId)}:${kind}`;
-}
-
 /** Deterministic stringify so {a:1,b:2} and {b:2,a:1} produce the same key. */
 function stableStringify(obj: unknown): string {
   if (obj === null || typeof obj !== "object") return JSON.stringify(obj);
