@@ -136,7 +136,7 @@ export default function TxFormDialog({ open, onOpenChange, initialType = "expens
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-[calc(100vw-1.25rem)] max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="max-w-sm w-[calc(100vw-2rem)] max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-5">
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg flex items-center gap-2">
             เพิ่มรายการ
@@ -178,7 +178,7 @@ export default function TxFormDialog({ open, onOpenChange, initialType = "expens
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0"
-            className="text-xl sm:text-2xl font-bold h-12 sm:h-14"
+            className="text-xl sm:text-2xl font-bold h-11 sm:h-12"
           />
           <div className="flex flex-wrap gap-1.5 pt-1">
             {quickAmounts.map((q) => (

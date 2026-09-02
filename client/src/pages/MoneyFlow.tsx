@@ -268,7 +268,7 @@ function MoneyFlowApp() {
       {/* Quick-entry summary cards */}
       <section className="relative z-10 px-3 sm:px-6 max-w-5xl mx-auto">
         <motion.div
-          className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3"
+          className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3"
           initial="hidden"
           animate="show"
           variants={{
@@ -359,7 +359,7 @@ function MoneyFlowApp() {
             <button
               key={t.k}
               onClick={() => setTab(t.k as Tab)}
-              className={`mf-tab flex items-center gap-1 sm:gap-1.5 rounded-full border px-2.5 sm:px-3 py-1.5 text-[12.5px] sm:text-sm whitespace-nowrap shrink-0 ${
+              className={`mf-tab flex items-center gap-1 sm:gap-1.5 rounded-full border px-3 sm:px-3 py-2 text-[13px] sm:text-sm whitespace-nowrap shrink-0 ${
                 tab === (t.k as Tab)
                   ? "bg-primary text-primary-foreground border-transparent shadow-md"
                   : "border-border text-muted-foreground hover:text-foreground"
@@ -500,7 +500,7 @@ function StatCard({
     <button
       type="button"
       onClick={onClick}
-      className="group relative mf-stat mf-card text-left rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-3 sm:p-4 shadow-sm hover:shadow-lg hover:border-border active:scale-[0.97] transition-all min-w-0 overflow-hidden"
+      className="group relative mf-stat mf-card text-left rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-3.5 sm:p-4 shadow-sm hover:shadow-lg hover:border-border active:scale-[0.97] transition-all min-w-0 overflow-hidden"
       style={{ ["--stat-color" as any]: color }}
     >
       {/* Soft color glow bleeding from the top-right corner */}
@@ -527,7 +527,7 @@ function StatCard({
         </div>
         {/* Tinted icon chip instead of a solid dot */}
         <div
-          className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl grid place-items-center font-bold text-xs sm:text-sm shrink-0 transition-transform duration-200 group-hover:scale-110"
+          className="w-8 h-8 sm:w-8 sm:h-8 rounded-xl grid place-items-center font-bold text-xs sm:text-sm shrink-0 transition-transform duration-200 group-hover:scale-110"
           style={{
             backgroundColor: `${color}1f`,
             color,
@@ -537,7 +537,7 @@ function StatCard({
           {icon}
         </div>
       </div>
-      <div className="mt-1.5 sm:mt-2 text-base sm:text-xl font-bold truncate tabular-nums">
+      <div className="mt-1.5 sm:mt-2 text-lg sm:text-xl font-bold truncate tabular-nums">
         <AnimatedCurrency
           value={value}
           currency={currency}
@@ -545,7 +545,7 @@ function StatCard({
         />
       </div>
       {hint && (
-        <div className="mt-1 text-[10px] sm:text-[11px] text-muted-foreground flex items-center gap-0.5 truncate">
+        <div className="mt-1 text-[11px] sm:text-[11px] text-muted-foreground flex items-center gap-0.5 truncate">
           {hint} <ChevronRight className="w-3 h-3 shrink-0 opacity-60 transition-transform duration-200 group-hover:translate-x-0.5" />
         </div>
       )}
