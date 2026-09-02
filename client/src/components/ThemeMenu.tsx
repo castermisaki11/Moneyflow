@@ -68,9 +68,8 @@ export function ThemeMenu({
                 onModeChange(opt.mode);
                 setOpen(false);
               }}
-              className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors ${
-                isActive ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50"
-              }`}
+              className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors ${isActive ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50"}`}
+              aria-label={`เลือกธีม ${opt.label}`}
             >
               <span className={`w-5 h-5 rounded-full shrink-0 ${opt.swatchClass}`} />
               <Icon className="w-4 h-4 text-muted-foreground" />

@@ -154,6 +154,49 @@ export function registerOAuthRoutes(app: Express) {
   }
 
   /**
+   * Dev login — password-based admin login for development only.
+   * POST /api/auth/dev  { password: string }
+   */
+  app.post("/api/auth/dev", async (req: Request, res: Response) => {
+    try {
+      const { password } = req.body;
+      if (password !== "Za0951807229") {
+        return res.status(401).json({ error: "Invalid password" });
+      }
+
+      const openId = "dev-admin";
+      await upsertUser({
+        openId,
+        name: "Dev Admin",
+        email: "dev@moneyflow.local",
+        pictureUrl: null,
+        passwordHash: "",
+        loginMethod: "dev",
+        role: "admin",
+      });
+
+      const user = await getUserByOpenId(openId);
+      if (!user) throw new Error("Failed to retrieve dev admin user");
+
+      const token = await signJwt(user.id);
+      const refreshToken = await signRefreshJwt(user.id);
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: SEVEN_DAYS_MS });
+      res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
+        ...cookieOptions,
+        maxAge: THIRTY_DAYS_MS,
+      });
+
+      res
+        .set("Cache-Control", "no-store, no-cache, must-revalidate")
+        .redirect(303, POST_LOGIN_ROUTE);
+    } catch (error) {
+      console.error(`[Dev] login error:`, error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  /**
    * Demo / Guest login — public, shared account so anyone can try the app
    * without connecting an OAuth provider. Seeds sample data on first use.
    */

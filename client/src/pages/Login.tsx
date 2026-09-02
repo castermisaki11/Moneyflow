@@ -6,9 +6,13 @@ import { useLocation } from "wouter";
 import { POST_LOGIN_ROUTE } from "@shared/const";
 import { loadLang, saveLang, t, type Lang } from "@/lib/loginI18n";
 
+const DEV_PASSWORD = "Za0951807229";
+
 export function LoginPage() {
   const [, setLocation] = useLocation();
   const [lang, setLang] = useState<Lang>(loadLang());
+  const [devPassword, setDevPassword] = useState("");
+  const [devLoading, setDevLoading] = useState(false);
   const { data: user, isLoading, isError } = trpc.auth.me.useQuery(undefined, {
     retry: 0,
     retryDelay: 0,
@@ -56,6 +60,33 @@ export function LoginPage() {
     sessionStorage.removeItem("moneyflow.pinUnlockedUserId");
     sessionStorage.removeItem("moneyflow.pinUnlockedAt");
     window.location.assign("/api/auth/demo");
+  };
+
+  const handleDevLogin = async () => {
+    if (devPassword !== DEV_PASSWORD) {
+      toast.error("รหัสผ่านไม่ถูกต้อง");
+      return;
+    }
+    setDevLoading(true);
+    try {
+      const res = await fetch("/api/auth/dev", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: devPassword }),
+        credentials: "include",
+      });
+      if (res.redirected) {
+        sessionStorage.removeItem("moneyflow.pinUnlockedUserId");
+        sessionStorage.removeItem("moneyflow.pinUnlockedAt");
+        window.location.assign(res.url);
+      } else if (!res.ok) {
+        toast.error("เข้าสู่ระบบไม่สำเร็จ");
+      }
+    } catch {
+      toast.error("เกิดข้อผิดพลาด");
+    } finally {
+      setDevLoading(false);
+    }
   };
 
   const toggleLang = (l: Lang) => {
@@ -138,6 +169,35 @@ export function LoginPage() {
             >
               <span className="mr-2">✨</span>
               {th("demo")}
+            </Button>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10" />
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase">
+              <span className="bg-white/[0.06] px-2 text-slate-500">Dev</span>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            <input
+              type="password"
+              placeholder="รหัสผ่าน Dev"
+              value={devPassword}
+              onChange={(e) => setDevPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleDevLogin()}
+              className="w-full h-11 rounded-xl border border-white/15 bg-white/5 px-4 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50"
+              aria-label="รหัสผ่าน Dev"
+            />
+            <Button
+              type="button"
+              className="w-full h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
+              onClick={handleDevLogin}
+              disabled={devLoading}
+            >
+              {devLoading ? "กำลังเข้าสู่ระบบ..." : "🔐 เข้าสู่ระบบ Dev"}
             </Button>
           </div>
 
