@@ -69,12 +69,12 @@ export function LoadError({
   onRetry: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-border/70 bg-card/70 p-4 flex items-center justify-between gap-3">
+    <div className="rounded-2xl border border-border/70 bg-card/70 p-4 flex items-center justify-between gap-3">
       <span className="text-sm text-muted-foreground">{title}</span>
       <button
         type="button"
         onClick={onRetry}
-        className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+        className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
       >
         <RefreshCw className="w-3.5 h-3.5" />
         ลองใหม่

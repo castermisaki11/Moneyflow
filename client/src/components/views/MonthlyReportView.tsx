@@ -15,8 +15,9 @@ import {
   toNumber,
 } from "@/lib/money";
 import { type Transaction } from "@/lib/types";
-import { Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Download, FileText, Printer, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
+import "@/styles/print.css";
 
 interface MonthlyReportViewProps {
   currency: string;
@@ -132,6 +133,39 @@ export function MonthlyReportView({ currency, transactions }: MonthlyReportViewP
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const exportCsv = () => {
+    const BOM = "\uFEFF";
+    const header = "หมวดหมู่,จำนวนเงิน,สัดส่วน (%)";
+    const rows = Object.entries(report.catMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, amt]) => {
+        const pct = report.expense > 0 ? ((amt / report.expense) * 100).toFixed(1) : "0";
+        return `"${cat}",${amt},${pct}`;
+      });
+
+    const summary = [
+      "",
+      "สรุป",
+      `รายรับ,${report.income}`,
+      `รายจ่าย,${report.expense}`,
+      `ออม,${report.saving}`,
+      `คงเหลือ,${report.balance}`,
+    ];
+
+    const csv = BOM + [header, ...rows, ...summary].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report-${selectedMonth}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const printReport = () => {
+    window.print();
+  };
+
   const maxDayExpense = Math.max(...Object.values(report.dailyMap).map((d) => d.expense), 1);
 
   return (
@@ -155,7 +189,13 @@ export function MonthlyReportView({ currency, transactions }: MonthlyReportViewP
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={exportReport}>
-              <Download className="w-4 h-4 mr-1" /> Export
+              <FileText className="w-4 h-4 mr-1" /> TXT
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Download className="w-4 h-4 mr-1" /> CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={printReport} className="print:hidden">
+              <Printer className="w-4 h-4 mr-1" /> พิมพ์
             </Button>
           </div>
         </div>

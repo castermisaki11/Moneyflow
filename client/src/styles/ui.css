@@ -1,0 +1,81 @@
+@reference "tailwindcss";
+@reference "../index.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@layer components {
+  /* Card component – consistent border, radius, shadow */
+  .card {
+    @apply rounded-lg bg-card/70 border border-border/70 shadow-sm transition-shadow duration-200;
+  }
+  .card:hover {
+    @apply shadow-md;
+  }
+
+  /* Button variants */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-primary text-white hover:bg-primary/90;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center rounded-md font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-primary text-primary hover:bg-primary/10;
+  }
+  .btn-destructive {
+    @apply inline-flex items-center justify-center rounded-md font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-error text-white hover:bg-error/90;
+  }
+
+  /* Input / Select */
+  .input {
+    @apply w-full rounded-md border border-muted bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary;
+  }
+  .select {
+    @apply w-full rounded-md border border-muted bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary;
+  }
+
+  /* Skeleton placeholder */
+  .skeleton {
+    @apply animate-pulse bg-muted/30 rounded-md;
+  }
+
+  /* Empty / Error states */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-8 text-muted-foreground gap-2;
+  }
+  .error-state {
+    @apply flex flex-col items-center justify-center py-8 text-error gap-2;
+  }
+
+  /* Typography helpers */
+  .title {
+    @apply text-lg font-semibold text-foreground;
+  }
+  .subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+
+  /* Responsive helpers – mobile‑first */
+  .grid-responsive {
+    @apply grid grid-cols-1 gap-4;
+  }
+  @media (min-width: 640px) {
+    .grid-responsive-sm {
+      @apply grid-cols-2;
+    }
+  }
+  @media (min-width: 768px) {
+    .grid-responsive-md {
+      @apply grid-cols-3;
+    }
+  }
+
+  /* Hover micro‑interaction */
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+}
+

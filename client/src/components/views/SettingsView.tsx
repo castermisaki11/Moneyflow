@@ -414,11 +414,12 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
         {/* Tab */}
         <div className="flex gap-1 mb-3">
           {(["income", "expense", "saving"] as TxType[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setCatTab(t)}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${catTab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
+<button
+                  key={t}
+                  onClick={() => setCatTab(t)}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${catTab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  aria-label={`เลือกแท็บ ${TYPE_LABELS[t]}`}
+                >
               {TYPE_LABELS[t]}
             </button>
           ))}

@@ -4,6 +4,7 @@ import { DataView } from "@/components/views/DataView";
 import { SettingsView } from "@/components/views/SettingsView";
 import { AccountView } from "@/components/views/AccountView";
 import { MetricsView } from "@/components/views/MetricsView";
+import DashboardCharts from "@/components/views/DashboardCharts";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -70,7 +71,6 @@ import {
   FileBarChart,
   ListChecks,
   Loader2,
-  Paperclip,
   Pencil,
   CircleUserRound,
   Plus,
@@ -325,7 +325,7 @@ function MoneyFlowApp() {
 
       {/* Tabs */}
       <nav className="relative z-10 mt-3 sm:mt-4 px-3 sm:px-6 max-w-5xl mx-auto">
-        <div className="flex gap-1.5 overflow-x-auto mf-no-scrollbar py-1 -mx-1 px-1">
+        <div className="flex gap-1.5 overflow-x-auto mf-no-scrollbar py-1 -mx-1 px-1" role="tablist" aria-label="เมนูหลัก">
           {[
             { k: "dashboard", label: "แดชบอร์ด", icon: <BarChart3 className="w-4 h-4" /> },
             { k: "transactions", label: "รายการ", icon: <ListChecks className="w-4 h-4" /> },
@@ -339,15 +339,19 @@ function MoneyFlowApp() {
                 ]
               : []),
           ].map((t) => (
-            <button
-              key={t.k}
-              onClick={() => setTab(t.k as Tab)}
-              className={`mf-tab flex items-center gap-1 sm:gap-1.5 rounded-full border px-2.5 sm:px-3 py-1.5 text-[12.5px] sm:text-sm whitespace-nowrap shrink-0 ${
-                tab === (t.k as Tab)
-                  ? "bg-primary text-primary-foreground border-transparent shadow-md"
-                  : "border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
+<button
+                role="tab"
+                aria-selected={tab === (t.k as Tab)}
+                aria-controls="tab-panel"
+                id={`tab-${t.k}`}
+                key={t.k}
+                onClick={() => setTab(t.k as Tab)}
+                className={`mf-tab flex items-center gap-1 sm:gap-1.5 rounded-full border px-2.5 sm:px-3 py-1.5 text-[12.5px] sm:text-sm whitespace-nowrap shrink-0 ${
+                  tab === (t.k as Tab)
+                    ? "bg-primary text-primary-foreground border-transparent shadow-md"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
               {t.icon}
               {t.label}
             </button>
@@ -356,7 +360,7 @@ function MoneyFlowApp() {
       </nav>
 
       {/* Content */}
-      <main className="relative z-10 mt-3 sm:mt-4 px-3 sm:px-6 max-w-5xl mx-auto">
+      <main role="tabpanel" id="tab-panel" className="relative z-10 mt-3 sm:mt-4 px-3 sm:px-6 max-w-5xl mx-auto">
         <div key={tab} className="mf-fade-in mf-view-enter">
           {tab === "dashboard" && (
             <DashboardView
@@ -431,7 +435,7 @@ function MoneyFlowApp() {
 
       {/* Floating theme switcher — bottom-left corner */}
       <div className="fixed bottom-5 left-5 z-20 mf-pop">
-        <div className="rounded-full border border-border/70 bg-card/70 backdrop-blur-md shadow-xl">
+        <div className="rounded-full border border-border/70 bg-card/70 backdrop-blur-md shadow-xl mf-pop">
           <ThemeMenu mode={themeMode} onModeChange={(m) => setThemeMode?.(m)} />
         </div>
       </div>
@@ -439,8 +443,8 @@ function MoneyFlowApp() {
       {/* Floating Add button */}
       <button
         onClick={() => openAdd("expense")}
-        className="fixed bottom-5 right-5 z-20 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-xl grid place-items-center mf-pop hover:scale-105 transition-transform"
-        aria-label="Add"
+        className="fixed bottom-5 right-5 z-20 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-xl shadow-indigo-500/25 grid place-items-center mf-pop hover:scale-105 active:scale-95 transition-transform"
+        aria-label="เพิ่มรายการ"
       >
         <Plus className="w-6 h-6" />
       </button>
@@ -475,7 +479,7 @@ function StatCard({
     <button
       type="button"
       onClick={onClick}
-      className="group relative mf-stat mf-card text-left rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-3 sm:p-4 shadow-sm hover:shadow-lg hover:border-border active:scale-[0.98] transition-all min-w-0 overflow-hidden"
+      className="group relative mf-stat mf-card text-left rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-3 sm:p-4 shadow-sm hover:shadow-xl hover:-translate-y-0.5 hover:border-border active:scale-[0.98] transition-all min-w-0 overflow-hidden"
       style={{ ["--stat-color" as any]: color }}
     >
       {/* Soft color glow bleeding from the top-right corner */}
@@ -512,7 +516,7 @@ function StatCard({
           {icon}
         </div>
       </div>
-      <div className="mt-1.5 sm:mt-2 text-base sm:text-xl font-bold truncate tabular-nums">
+      <div className="mt-1.5 sm:mt-2 text-base sm:text-xl font-bold truncate tabular-nums tracking-tight">
         <AnimatedCurrency
           value={value}
           currency={currency}
@@ -612,6 +616,8 @@ function DashboardView({
 
   return (
     <div className="grid grid-cols-1 gap-4">
+      <DashboardCharts transactions={transactions} currency={currency} />
+
       <div
         onClick={() => onNavigate("budgets")}
         className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
@@ -1140,24 +1146,13 @@ function TransactionsView({
                         {sign}
                         {formatCurrency(toNumber(t.amount), currency)}
                       </div>
-                    </button>
-                    {(t as any).attachmentId ? (
-                      <a
-                        href={`/api/attachments/${(t as any).attachmentId}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="ดูสลิปที่แนบจาก Telegram"
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent"
-                      >
-                        <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
-                      </a>
-                    ) : null}
+                     </button>
                     <Button
                       size="icon"
                       variant="ghost"
                       className="h-8 w-8 shrink-0"
                       onClick={() => openEdit(t)}
-                      title="แก้ไข"
+                      aria-label="แก้ไขรายการ"
                     >
                       <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                     </Button>
@@ -1166,6 +1161,7 @@ function TransactionsView({
                       variant="ghost"
                       className="h-8 w-8 shrink-0"
                       onClick={() => setDeleteTx(t)}
+                      aria-label="ลบรายการ"
                     >
                       <Trash2 className="w-4 h-4 text-muted-foreground" />
                     </Button>
@@ -1179,12 +1175,12 @@ function TransactionsView({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-1 flex-wrap">
+        <div role="tablist" className="flex items-center justify-center gap-1 flex-wrap" aria-label="จำแว่งไฟแนะ">
           <button
             onClick={() => setPage(1)}
             disabled={safePage === 1}
             className="h-8 w-8 rounded-lg border border-border text-xs flex items-center justify-center disabled:opacity-30 hover:bg-muted transition-colors"
-            title="หน้าแรก"
+            aria-label="หน้าแรก"
           >
             «
           </button>
@@ -1192,7 +1188,7 @@ function TransactionsView({
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={safePage === 1}
             className="h-8 w-8 rounded-lg border border-border text-xs flex items-center justify-center disabled:opacity-30 hover:bg-muted transition-colors"
-            title="ก่อนหน้า"
+            aria-label="ก่อนหน้า"
           >
             ‹
           </button>
@@ -1211,34 +1207,35 @@ function TransactionsView({
                 </span>
               ) : (
                 <button
-                  key={item}
-                  onClick={() => setPage(item as number)}
-                  className={`h-8 w-8 rounded-lg border text-xs flex items-center justify-center transition-colors ${
-                    safePage === item
-                      ? "bg-primary text-primary-foreground border-transparent"
-                      : "border-border hover:bg-muted"
-                  }`}
-                >
-                  {item}
-                </button>
+              key={item}
+              onClick={() => setPage(item as number)}
+              className={`h-8 w-8 rounded-lg border text-xs flex items-center justify-center transition-colors ${
+                safePage === item
+                  ? "bg-primary text-primary-foreground border-transparent"
+                  : "border-border hover:bg-muted"
+              }`}
+              aria-label={`หน้า ${item}`}
+            >
+              {item}
+            </button>
               )
             )}
 
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={safePage === totalPages}
-            className="h-8 w-8 rounded-lg border border-border text-xs flex items-center justify-center disabled:opacity-30 hover:bg-muted transition-colors"
-            title="ถัดไป"
-          >
-            ›
-          </button>
-          <button
-            onClick={() => setPage(totalPages)}
-            disabled={safePage === totalPages}
-            className="h-8 w-8 rounded-lg border border-border text-xs flex items-center justify-center disabled:opacity-30 hover:bg-muted transition-colors"
-            title="หน้าสุดท้าย"
-          >
-            »
+<button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="h-8 w-8 rounded-lg border border-border text-xs flex items-center justify-center disabled:opacity-30 hover:bg-muted transition-colors"
+                aria-label="ถัดไป"
+              >
+                ›
+              </button>
+<button
+                onClick={() => setPage(totalPages)}
+                disabled={safePage === totalPages}
+                className="h-8 w-8 rounded-lg border border-border text-xs flex items-center justify-center disabled:opacity-30 hover:bg-muted transition-colors"
+                aria-label="หน้าสุดท้าย"
+              >
+                »
           </button>
           <span className="text-xs text-muted-foreground ml-1">
             หน้า {safePage}/{totalPages}
@@ -1475,6 +1472,7 @@ function BudgetsView({
                     variant="ghost"
                     className="h-8 w-8"
                     onClick={() => animateRemoveBudget(b.id, () => remove.mutate({ id: b.id }))}
+                    aria-label={`ลบงบประมาณ ${b.category}`}
                   >
                     <Trash2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
@@ -1683,7 +1681,7 @@ function GoalsView({ currency, goals }: { currency: string; goals: any[] }) {
                       </div>
                     </div>
                   </div>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => animateRemoveGoal(g.id, () => remove.mutate({ id: g.id }))}>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => animateRemoveGoal(g.id, () => remove.mutate({ id: g.id }))} aria-label={`ลบเป้าหมาย ${g.name}`}>
                     <Trash2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </div>
@@ -1929,7 +1927,7 @@ function RecurringView({ currency, items, goals }: { currency: string; items: an
                   <Button size="sm" variant={due ? "default" : "outline"} className="flex-1" onClick={() => runNow.mutate({ id: r.id })}>
                     บันทึกงวดนี้
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => animateRemoveRecurring(r.id, () => remove.mutate({ id: r.id }))}>
+                  <Button size="icon" variant="ghost" onClick={() => animateRemoveRecurring(r.id, () => remove.mutate({ id: r.id }))} aria-label={`ลบรายการประจำ ${r.category || r.note || "ไม่มีข้อมูล"}`}>
                     <Trash2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </div>
@@ -2041,8 +2039,11 @@ function RecurringView({ currency, items, goals }: { currency: string; items: an
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-xs text-muted-foreground">
-      {text}
+    <div className="rounded-2xl border border-border/60 bg-card/30 p-8 text-center text-xs text-muted-foreground">
+      <div className="flex flex-col items-center gap-2">
+        <svg className="w-10 h-10 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13l3 3L22 4m0 4v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h10" /></svg>
+        {text}
+      </div>
     </div>
   );
 }
