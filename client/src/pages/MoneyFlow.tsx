@@ -89,6 +89,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAnimatedPct } from "@/hooks/useAnimatedPct";
 import { AnimatedCurrency } from "@/components/shared/AnimatedCurrency";
 import "@/styles/moneyflow.css";
@@ -265,12 +266,21 @@ function MoneyFlowApp() {
       </header>
 
       {/* Quick-entry summary cards */}
-      <section className="relative z-10 px-3 sm:px-6 max-w-5xl mx-auto mf-fade-in">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+      <section className="relative z-10 px-3 sm:px-6 max-w-5xl mx-auto">
+        <motion.div
+          className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3"
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: {},
+            show: { transition: { staggerChildren: 0.05, delayChildren: 0.1 } },
+          }}
+        >
           {txs.isLoading
             ? [0, 1, 2, 3].map((i) => <SkeletonStatCard key={i} />)
             : (
           <>
+          <motion.div variants={{ hidden: { opacity: 0, y: 12, scale: 0.96 }, show: { opacity: 1, y: 0, scale: 1 } }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
           <StatCard
             color="#22c55e"
             title="รายรับ"
@@ -281,6 +291,8 @@ function MoneyFlowApp() {
             onClick={() => openAdd("income")}
             hint="แตะเพื่อเพิ่ม"
           />
+          </motion.div>
+          <motion.div variants={{ hidden: { opacity: 0, y: 12, scale: 0.96 }, show: { opacity: 1, y: 0, scale: 1 } }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
           <StatCard
             color="#ef4444"
             title="รายจ่าย"
@@ -291,6 +303,8 @@ function MoneyFlowApp() {
             onClick={() => openAdd("expense")}
             hint="แตะเพื่อเพิ่ม"
           />
+          </motion.div>
+          <motion.div variants={{ hidden: { opacity: 0, y: 12, scale: 0.96 }, show: { opacity: 1, y: 0, scale: 1 } }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
           <StatCard
             color="#3b82f6"
             title="ออม"
@@ -301,6 +315,8 @@ function MoneyFlowApp() {
             onClick={() => openAdd("saving")}
             hint="แตะเพื่อเพิ่ม"
           />
+          </motion.div>
+          <motion.div variants={{ hidden: { opacity: 0, y: 12, scale: 0.96 }, show: { opacity: 1, y: 0, scale: 1 } }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
           <StatCard
             color="#a78bfa"
             title="คงเหลือ"
@@ -318,9 +334,10 @@ function MoneyFlowApp() {
             }
             highlight={totalBalance < 0 ? "negative" : "neutral"}
           />
+          </motion.div>
           </>
           )}
-        </div>
+        </motion.div>
       </section>
 
       {/* Tabs */}
@@ -357,76 +374,84 @@ function MoneyFlowApp() {
 
       {/* Content */}
       <main className="relative z-10 mt-3 sm:mt-4 px-3 sm:px-6 max-w-5xl mx-auto">
-        <div key={tab} className="mf-fade-in mf-view-enter">
-          {tab === "dashboard" && (
-            <DashboardView
-              currency={currency}
-              transactions={txs.data || []}
-              goals={goals.data || []}
-              budgets={budgets.data || []}
-              recurring={recurring.data || []}
-              onAdd={openAdd}
-              onNavigate={(t) => setTab(t)}
-              sections={{
-                budgets: {
-                  loading: budgets.isLoading,
-                  error: !!budgets.error && !budgets.data,
-                  retry: () => budgets.refetch(),
-                },
-                recurring: {
-                  loading: recurring.isLoading,
-                  error: !!recurring.error && !recurring.data,
-                  retry: () => recurring.refetch(),
-                },
-                goals: {
-                  loading: goals.isLoading,
-                  error: !!goals.error && !goals.data,
-                  retry: () => goals.refetch(),
-                },
-              }}
-            />
-          )}
-          {tab === "transactions"
-            ? txs.data
-              ? <TransactionsView currency={currency} transactions={txs.data} onAdd={openAdd} />
-              : txs.isLoading
-              ? <SkeletonRows rows={8} rowClass="h-[52px]" />
-              : <LoadError onRetry={() => txs.refetch()} />
-            : null}
-          {tab === "budgets"
-            ? budgets.data
-              ? <BudgetsView currency={currency} transactions={txs.data || []} budgets={budgets.data} />
-              : budgets.isLoading
-              ? <div className="space-y-3"><SkeletonBars bars={5} /></div>
-              : <LoadError onRetry={() => budgets.refetch()} />
-            : null}
-          {tab === "recurring"
-            ? recurring.data
-              ? <RecurringView currency={currency} items={recurring.data} goals={goals.data || []} />
-              : recurring.isLoading
-              ? <SkeletonRows rows={4} rowClass="h-[56px]" />
-              : <LoadError onRetry={() => recurring.refetch()} />
-            : null}
-          {tab === "report" && (
-            <MonthlyReportView
-              currency={currency}
-              transactions={txs.data || []}
-            />
-          )}
-          {tab === "data" && (
-            <DataView
-              currency={currency}
-              transactions={txs.data || []}
-              budgets={budgets.data || []}
-              goals={goals.data || []}
-              recurring={recurring.data || []}
-              onBack={() => setTab("settings")}
-            />
-          )}
-          {tab === "settings" && <SettingsView onOpenBackup={() => setTab("data")} />}
-          {tab === "account" && <AccountView />}
-          {tab === "metrics" && isAdmin && <MetricsView />}
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {tab === "dashboard" && (
+              <DashboardView
+                currency={currency}
+                transactions={txs.data || []}
+                goals={goals.data || []}
+                budgets={budgets.data || []}
+                recurring={recurring.data || []}
+                onAdd={openAdd}
+                onNavigate={(t) => setTab(t)}
+                sections={{
+                  budgets: {
+                    loading: budgets.isLoading,
+                    error: !!budgets.error && !budgets.data,
+                    retry: () => budgets.refetch(),
+                  },
+                  recurring: {
+                    loading: recurring.isLoading,
+                    error: !!recurring.error && !recurring.data,
+                    retry: () => recurring.refetch(),
+                  },
+                  goals: {
+                    loading: goals.isLoading,
+                    error: !!goals.error && !goals.data,
+                    retry: () => goals.refetch(),
+                  },
+                }}
+              />
+            )}
+            {tab === "transactions"
+              ? txs.data
+                ? <TransactionsView currency={currency} transactions={txs.data} onAdd={openAdd} />
+                : txs.isLoading
+                ? <SkeletonRows rows={8} rowClass="h-[52px]" />
+                : <LoadError onRetry={() => txs.refetch()} />
+              : null}
+            {tab === "budgets"
+              ? budgets.data
+                ? <BudgetsView currency={currency} transactions={txs.data || []} budgets={budgets.data} />
+                : budgets.isLoading
+                ? <div className="space-y-3"><SkeletonBars bars={5} /></div>
+                : <LoadError onRetry={() => budgets.refetch()} />
+              : null}
+            {tab === "recurring"
+              ? recurring.data
+                ? <RecurringView currency={currency} items={recurring.data} goals={goals.data || []} />
+                : recurring.isLoading
+                ? <SkeletonRows rows={4} rowClass="h-[56px]" />
+                : <LoadError onRetry={() => recurring.refetch()} />
+              : null}
+            {tab === "report" && (
+              <MonthlyReportView
+                currency={currency}
+                transactions={txs.data || []}
+              />
+            )}
+            {tab === "data" && (
+              <DataView
+                currency={currency}
+                transactions={txs.data || []}
+                budgets={budgets.data || []}
+                goals={goals.data || []}
+                recurring={recurring.data || []}
+                onBack={() => setTab("settings")}
+              />
+            )}
+            {tab === "settings" && <SettingsView onOpenBackup={() => setTab("data")} />}
+            {tab === "account" && <AccountView />}
+            {tab === "metrics" && isAdmin && <MetricsView />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Floating theme switcher — bottom-left corner */}
@@ -439,7 +464,7 @@ function MoneyFlowApp() {
       {/* Floating Add button */}
       <button
         onClick={() => openAdd("expense")}
-        className="fixed bottom-5 right-5 z-20 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-xl grid place-items-center mf-pop hover:scale-105 transition-transform"
+        className="fixed bottom-5 right-5 z-20 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-xl grid place-items-center mf-pop hover:scale-105 active:scale-[0.92] transition-transform"
         aria-label="Add"
       >
         <Plus className="w-6 h-6" />
@@ -475,7 +500,7 @@ function StatCard({
     <button
       type="button"
       onClick={onClick}
-      className="group relative mf-stat mf-card text-left rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-3 sm:p-4 shadow-sm hover:shadow-lg hover:border-border active:scale-[0.98] transition-all min-w-0 overflow-hidden"
+      className="group relative mf-stat mf-card text-left rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-3 sm:p-4 shadow-sm hover:shadow-lg hover:border-border active:scale-[0.97] transition-all min-w-0 overflow-hidden"
       style={{ ["--stat-color" as any]: color }}
     >
       {/* Soft color glow bleeding from the top-right corner */}
@@ -611,10 +636,20 @@ function DashboardView({
     });
 
   return (
-    <div className="grid grid-cols-1 gap-4">
-      <div
+    <motion.div
+      className="grid grid-cols-1 gap-4"
+      initial="hidden"
+      animate="show"
+      variants={{
+        hidden: {},
+        show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } },
+      }}
+    >
+      <motion.div
+        variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         onClick={() => onNavigate("budgets")}
-        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
+        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.97]"
       >
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-semibold">ภาพรวมงบประมาณ</div>
@@ -667,12 +702,14 @@ function DashboardView({
             })
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Monthly report — compact launcher tile */}
-      <div
+      <motion.div
+        variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         onClick={() => onNavigate("report")}
-        className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 backdrop-blur-md px-3 py-2.5 mf-card cursor-pointer transition-colors hover:bg-card hover:border-border active:scale-[0.99]"
+        className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 backdrop-blur-md px-3 py-2.5 mf-card cursor-pointer transition-colors hover:bg-card hover:border-border active:scale-[0.97]"
       >
         <span className="w-8 h-8 shrink-0 rounded-lg bg-primary/10 text-primary grid place-items-center">
           <FileBarChart className="w-4 h-4" />
@@ -682,12 +719,14 @@ function DashboardView({
           <span className="block text-[11px] text-muted-foreground">สรุปยอด + กราฟแยกตามหมวด</span>
         </span>
         <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
-      </div>
+      </motion.div>
 
       {/* Recurring */}
-      <div
+      <motion.div
+        variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         onClick={() => onNavigate("recurring")}
-        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
+        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.97]"
       >
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-semibold">รายการประจำที่กำลังจะถึง</div>
@@ -734,12 +773,14 @@ function DashboardView({
               })}
           </ul>
         )}
-      </div>
+      </motion.div>
 
       {/* Goals */}
-      <div
+      <motion.div
+        variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         onClick={() => onNavigate("recurring")}
-        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
+        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.97]"
       >
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-semibold">เป้าหมายการออม</div>
@@ -798,10 +839,10 @@ function DashboardView({
               })}
           </ul>
         )}
-      </div>
+      </motion.div>
 
 
-    </div>
+    </motion.div>
   );
 }
 
