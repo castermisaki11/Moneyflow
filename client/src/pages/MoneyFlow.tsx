@@ -359,7 +359,7 @@ function MoneyFlowApp() {
             <button
               key={t.k}
               onClick={() => setTab(t.k as Tab)}
-              className={`mf-tab flex items-center gap-1 sm:gap-1.5 rounded-full border px-3 sm:px-3 py-2 text-[13px] sm:text-sm whitespace-nowrap shrink-0 ${
+              className={`mf-tab flex items-center gap-1 sm:gap-1.5 rounded-full border px-2.5 sm:px-3 py-1.5 text-[12.5px] sm:text-sm whitespace-nowrap shrink-0 ${
                 tab === (t.k as Tab)
                   ? "bg-primary text-primary-foreground border-transparent shadow-md"
                   : "border-border text-muted-foreground hover:text-foreground"
@@ -527,7 +527,7 @@ function StatCard({
         </div>
         {/* Tinted icon chip instead of a solid dot */}
         <div
-          className="w-8 h-8 sm:w-8 sm:h-8 rounded-xl grid place-items-center font-bold text-xs sm:text-sm shrink-0 transition-transform duration-200 group-hover:scale-110"
+          className="w-10 h-10 sm:w-10 sm:h-10 rounded-xl grid place-items-center font-bold text-sm sm:text-base shrink-0 transition-transform duration-200 group-hover:scale-110"
           style={{
             backgroundColor: `${color}1f`,
             color,

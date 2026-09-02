@@ -230,19 +230,14 @@ body, #root {
 }
 
 @media (max-width: 640px) {
-  .mf-tab { font-size: 13px; padding: 0.45rem 0.75rem; }
-  .mf-chip { font-size: 12px; padding: 0.3rem 0.6rem; }
+  .mf-tab { font-size: 12.5px; padding: 0.35rem 0.7rem; }
+  .mf-chip { font-size: 11.5px; padding: 0.25rem 0.55rem; }
 
   .mf-stat { border-radius: 14px; }
 
   .mf-orb { filter: blur(40px); opacity: 0.22; }
 
-  [data-slot="dialog-content"] { padding: 0.875rem !important; }
-
-  /* Minimum 44px touch targets for mobile */
-  button, [role="button"], a[href], select, input[type="checkbox"], input[type="radio"] {
-    min-height: 44px;
-  }
+  [data-slot="dialog-content"] { padding: 1rem !important; }
 
   button, [role="button"] { -webkit-tap-highlight-color: transparent; }
 }
