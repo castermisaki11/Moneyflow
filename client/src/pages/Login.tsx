@@ -52,12 +52,6 @@ export function LoginPage() {
     window.location.assign(`/api/auth/${provider}`);
   };
 
-  const handleDemoLogin = () => {
-    sessionStorage.removeItem("moneyflow.pinUnlockedUserId");
-    sessionStorage.removeItem("moneyflow.pinUnlockedAt");
-    window.location.assign("/api/auth/demo");
-  };
-
   const toggleLang = (l: Lang) => {
     setLang(l);
     saveLang(l);
@@ -106,17 +100,6 @@ export function LoginPage() {
           <div className="space-y-2.5">
             <Button
               type="button"
-              className="w-full h-11 bg-[#5865F2] hover:bg-[#4752c4] text-white font-medium rounded-xl"
-              onClick={() => handleOAuthLogin("discord")}
-            >
-              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.317 4.3671a19.8062 19.8062 0 00-4.885-1.515.0741.0741 0 00-.0785.0371c-.211.3671-.445.8447-.608 1.2321a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.2288.077.077 0 00-.079-.037 19.7896 19.7896 0 00-4.885 1.515.0699.0699 0 00-.032.0274C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.0605 19.9384 19.9384 0 005.993 3.03.0784.0784 0 00.085-.027 14.285 14.285 0 001.146-1.861.076.076 0 00-.042-.106 13.1917 13.1917 0 01-1.871-.892.077.077 0 01-.008-.128 10.2457 10.2457 0 00.372-.294.075.075 0 01.078-.01c3.928 1.793 8.18 1.793 12.062 0a.075.075 0 01.079.009c.12.098.246.198.373.295a.077.077 0 01-.006.127 13.22 13.22 0 01-1.871.892.077.077 0 00-.041.107c.36.698.772 1.362 1.146 1.861a.077.077 0 00.085.028 19.963 19.963 0 005.993-3.03.077.077 0 00.032-.06c.5-4.467.151-8.35-.882-12.087a.077.077 0 00-.031-.028zM8.02 15.3312c-1.044 0-1.9-1.005-1.9-2.247 0-1.242.84-2.247 1.9-2.247 1.062 0 1.919 1.005 1.9 2.247 0 1.242-.84 2.247-1.9 2.247zm7.973 0c-1.044 0-1.9-1.005-1.9-2.247 0-1.242.84-2.247 1.9-2.247 1.062 0 1.919 1.005 1.9 2.247 0 1.242-.837 2.247-1.9 2.247z" />
-              </svg>
-              {th("discord")}
-            </Button>
-
-            <Button
-              type="button"
               variant="outline"
               className="w-full h-11 rounded-xl bg-white text-slate-800 hover:bg-slate-100 border-white/60 font-medium"
               onClick={() => handleOAuthLogin("google")}
@@ -128,16 +111,6 @@ export function LoginPage() {
                 <path fill="#EA4335" d="M12 4.773c1.762 0 3.344.606 4.59 1.796l3.442-3.442C17.951 1.19 15.236 0 12 0 7.31 0 3.253 2.69 1.278 6.606l4.006 3.107C6.23 6.877 8.874 4.773 12 4.773z" />
               </svg>
               {th("google")}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-11 rounded-xl border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 font-medium"
-              onClick={handleDemoLogin}
-            >
-              <span className="mr-2">✨</span>
-              {th("demo")}
             </Button>
           </div>
 

@@ -15,8 +15,8 @@ export const apiLimiter = rateLimit({
 
 /**
  * Stricter limiter for the OAuth login/callback endpoints. These start
- * a login flow and hit Discord's API, so they're both the most
- * sensitive to brute-force/credential-stuffing-style abuse and the
+ * a login flow and hit the provider's API (Google), so they're both the
+ * most sensitive to brute-force/credential-stuffing-style abuse and the
  * most expensive to let someone hammer.
  */
 export const authLimiter = rateLimit({

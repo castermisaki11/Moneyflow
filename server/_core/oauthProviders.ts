@@ -30,10 +30,9 @@ export interface OAuthProviderConfig {
   clientIdEnv: string;
   clientSecretEnv: string;
   redirectUriEnv: string;
-  /** Some providers (Google) want the token request as JSON-able form body
-   *  with client_secret included, same shape as Discord — so no variant
-   *  needed today, but kept as a hook in case a future provider wants
-   *  HTTP Basic auth instead. */
+  /** Google wants the token request as a form body with client_secret
+   *  included; kept as a hook in case a future provider wants HTTP Basic
+   *  auth instead. */
   tokenAuthStyle?: "body" | "basic";
   parseUser: (raw: any) => NormalizedOAuthUser;
 }
@@ -49,28 +48,6 @@ function requiredEnv(name: string, providerLabel: string): string {
 }
 
 export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
-  discord: {
-    id: "discord",
-    label: "Discord",
-    authorizeUrl: "https://discord.com/oauth2/authorize",
-    tokenUrl: "https://discord.com/api/oauth2/token",
-    userUrl: "https://discord.com/api/users/@me",
-    scope: "identify",
-    extraAuthorizeParams: { prompt: "consent" },
-    clientIdEnv: "DISCORD_CLIENT_ID",
-    clientSecretEnv: "DISCORD_CLIENT_SECRET",
-    redirectUriEnv: "DISCORD_REDIRECT_URI",
-    parseUser: (raw) => ({
-      id: raw.id,
-      name: raw.global_name || raw.username,
-      email: null,
-      // Discord doesn't return a ready-made avatar URL — build it from the
-      // user id + avatar hash (null when the account has no custom avatar).
-      picture: raw.avatar
-        ? `https://cdn.discordapp.com/avatars/${raw.id}/${raw.avatar}.png?size=256`
-        : null,
-    }),
-  },
   google: {
     id: "google",
     label: "Google",
@@ -78,9 +55,9 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     tokenUrl: "https://oauth2.googleapis.com/token",
     userUrl: "https://www.googleapis.com/oauth2/v2/userinfo",
     scope: "openid email profile",
-    // select_account (not Discord's "consent") so people with multiple
-    // Google accounts logged into the browser get the picker every time,
-    // instead of silently reusing whichever one Google picks by default.
+    // select_account so people with multiple Google accounts logged into
+    // the browser get the picker every time, instead of silently reusing
+    // whichever one Google picks by default.
     extraAuthorizeParams: { prompt: "select_account" },
     clientIdEnv: "GOOGLE_CLIENT_ID",
     clientSecretEnv: "GOOGLE_CLIENT_SECRET",

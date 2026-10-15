@@ -19,7 +19,6 @@ function fmtDate(d: string | Date | null | undefined): string {
 }
 
 const LOGIN_METHOD_LABEL: Record<string, string> = {
-  discord: "Discord",
   google: "Google",
   password: "รหัสผ่าน",
 };
@@ -193,8 +192,7 @@ export function UsersView() {
 
       <p className="text-[11px] text-muted-foreground">
         การเพิ่มแอดมินผ่าน ID ของแต่ละ provider ทำได้ผ่าน environment variable{" "}
-        <code className="bg-muted px-1 rounded">ADMIN_DISCORD_IDS</code>,{" "}
-        <code className="bg-muted px-1 rounded">ADMIN_GOOGLE_IDS</code> ฯลฯ เช่นกัน — ปุ่มด้านบนนี้เปลี่ยนสิทธิ์ทันทีโดยไม่ต้อง deploy ใหม่
+        <code className="bg-muted px-1 rounded">ADMIN_GOOGLE_IDS</code> ฯลฯ — ปุ่มด้านบนนี้เปลี่ยนสิทธิ์ทันทีโดยไม่ต้อง deploy ใหม่
       </p>
 
       {/* Delete user — irreversible, so this requires typing the account's

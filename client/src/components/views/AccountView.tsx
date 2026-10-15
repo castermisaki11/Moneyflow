@@ -24,7 +24,6 @@ function fmtDate(d: string | Date | null | undefined): string {
 }
 
 const LOGIN_METHOD_LABEL: Record<string, string> = {
-  discord: "Discord",
   google: "Google",
   password: "รหัสผ่าน",
 };
@@ -193,7 +192,7 @@ export function AccountView() {
 
         {editingName && (
           <p className="mt-2 text-[11px] text-muted-foreground">
-            ชื่อที่แก้จะถูกเก็บไว้ — จะไม่ถูกเปลี่ยนกลับโดย Discord/Google เมื่อเข้าสู่ระบบครั้งถัดไป
+            ชื่อที่แก้จะถูกเก็บไว้ — จะไม่ถูกเปลี่ยนกลับโดย Google เมื่อเข้าสู่ระบบครั้งถัดไป
             (Enter เพื่อบันทึก, Esc เพื่อยกเลิก)
           </p>
         )}

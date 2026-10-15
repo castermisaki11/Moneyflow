@@ -12,25 +12,44 @@
 pnpm install
 ```
 
+> บน filesystem ที่ไม่รองรับ symlink (เช่น sdcard ของ Android/Termux) `pnpm install` จะล้มเหลวด้วย `EACCES` — ให้ copy โปรเจกต์ไปติดตั้งที่ home directory จริง (เช่น `/root`) ก่อน
+
 ## Environment Variables
+
+ไม่มี `.env.example` ใน repo — สร้างไฟล์ `.env` เอง (อยู่ใน `.gitignore` แล้ว)
 
 | ตัวแปร | จำเป็น | คำอธิบาย |
 |---|---|---|
 | `DATABASE_URL` | ✅ | Connection string ของ PostgreSQL เช่น `postgres://user:pass@host:5432/moneyflow` |
-| `JWT_SECRET` | ✅ | Secret สำหรับ sign JWT (auth ของเว็บ) |
-| `PORT` | ⬜ | Port ของ server (default ตาม host) |
+| `JWT_SECRET` | ✅ | Secret สำหรับ sign JWT (cookie session) — ถ้าไม่ตั้งจะใช้ค่า `"change-me-please"` |
+| `GOOGLE_CLIENT_ID` | ✅ | Google OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | ✅ | Google OAuth Client Secret |
+| `GOOGLE_REDIRECT_URI` | ✅ | Callback URL เช่น `http://localhost:3000/api/auth/google/callback` — ต้องตรงกับที่ตั้งใน Google Cloud Console |
+| `PORT` | ⬜ | Port ของ server (default `3000`) |
 | `NODE_ENV` | ⬜ | `development` / `production` (set ให้อัตโนมัติโดย scripts) |
+| `OWNER_OPEN_ID` | ⬜ | openId ของเจ้าของ (รูป `google-<user-id>`) → ได้สิทธิ์ admin |
+| `ADMIN_GOOGLE_IDS` | ⬜ | รายชื่อ Google user id ที่ได้สิทธิ์ admin คั่นด้วย `,` เช่น `109...,207...` |
+| `VITE_ANALYTICS_ENDPOINT` | ⬜ | ปลายทาง analytics (umami) — ต้อง uncomment `<script>` ใน `client/index.html` ด้วย |
+| `VITE_ANALYTICS_WEBSITE_ID` | ⬜ | Website ID ของ analytics |
+
+> **หมายเหตุสำคัญ:** ถ้า `GOOGLE_*` ไม่ครบ หน้า login จะกดปุ่ม Google แล้วเด้งกลับ `/login?error=oauth_init` ทันที (server ตั้ง URL authorize ไม่ได้) — ไม่มีวิธี login ทางเลือกอื่นสำรอง
+>
+> สิทธิ์ admin ถูกเช็คทุกครั้งที่ login (`isAdminOpenId` ใน `server/_core/env.ts`) จึงแก้ env แล้วมีผลรอบ login ถัดไป ไม่ต้องแก้ DB
 
 ## Scripts ที่ใช้บ่อย
 
 ```bash
-pnpm dev          # dev server แบบ watch (tsx watch server/_core/index.ts)
-pnpm build        # vite build + esbuild bundle server → dist/
-pnpm start        # รัน production จาก dist/index.js
+pnpm dev          # dev server แบบ watch (tsx watch server/_core/index.ts) — Vite HMR ผ่าน port เดียวกัน
+pnpm build        # vite build → dist/public + esbuild bundle server → dist/index.js
+pnpm start        # NODE_ENV=production node dist/index.js
 pnpm typecheck    # tsc --noEmit
-pnpm test         # vitest run
+pnpm check        # เหมือน typecheck
+pnpm test         # vitest run (DB ถูก mock ไม่ต้องมี Postgres)
 pnpm format       # prettier --write .
+pnpm db:push      # (optional) drizzle-kit generate + migrate
 ```
+
+Server dev รันที่ `http://localhost:3000` — ทั้ง client และ API อยู่ port เดียวกัน (Vite middleware ผ่าน Express)
 
 ## Database & Migrations
 
@@ -43,6 +62,7 @@ pnpm format       # prettier --write .
    - ตารางใหม่ → `CREATE TABLE IF NOT EXISTS ...`
    - column ใหม่ → `ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...`
    - enum value ใหม่ → `ALTER TYPE ... ADD VALUE IF NOT EXISTS ...`
+   - ลบของ → `DROP TABLE/COLUMN IF EXISTS ...`
 3. Commit — deploy ถัดไปจะ apply ให้อัตโนมัติ
 
 รายละเอียดเพิ่มเติมใน [`../drizzle/README.md`](../drizzle/README.md)
@@ -51,20 +71,38 @@ pnpm format       # prettier --write .
 
 1. แก้ client (`client/src`) และ/หรือ server (`server/`)
 2. แชร์ logic/type ผ่าน tRPC — router ฝั่ง server define แล้ว client เรียกผ่าน `@trpc/react-query` ได้ทันทีแบบ type-safe
-3. ก่อน commit: `pnpm typecheck && pnpm test`
-4. Format code: `pnpm format`
+   - เพิ่ม field ใน response → แก้ router อย่างเดียว types ฝั่ง client ตามเอง
+   - เพิ่ม input ใหม่ → ใช้ `zod` schema ใน router เดียวกัน
+3. **ถ้าเพิ่ม/แก้ตาราง** → อย่าลืมขั้นตอน migration ด้านบน
+4. ก่อน commit: `pnpm typecheck && pnpm test`
+5. Format code: `pnpm format`
 
-## โครงสร้าง path aliases (shadcn/ui)
+## Testing
 
-จาก `components.json`:
+- Vitest environment `node`, ครอบคลุม `server/**/*.test.ts`
+- `server/moneyflow.test.ts` (7 tests) **mock `server/db` ทั้งหมด** — จึงรันได้โดยไม่ต้องมี Postgres
+- ครอบคลุม: สร้าง/ลบ transaction, validation, การแยกข้อมูลรายคน (isolation), goal + เพิ่มเงิน, recurring `runNow`, settings
 
-- `@/components` → components
+## โครงสร้าง path aliases (shadcn/ui + tsconfig)
+
+จาก `tsconfig.json` / `components.json`:
+
+- `@/*` → `client/src/*`
+- `@shared/*` → `shared/*`
+- `@assets/*` → `attached_assets/*`
 - `@/components/ui` → shadcn ui components
 - `@/lib/utils` → utilities (`clsx` + `tailwind-merge`)
-- `@/hooks` → custom hooks
 
 ## ข้อควรรู้
 
-- Tailwind CSS ใช้ **v4** (ผ่าน `@tailwindcss/vite` plugin) + `tw-animate-css`
-- React Query cache persist ลง localStorage ผ่าน `query-sync-storage-persister`
-- เวลาทั้งระบบคำนวณบน timezone **Asia/Bangkok**
+- **Tailwind CSS ใช้ v4** (ผ่าน `@tailwindcss/vite` plugin) + `tw-animate-css`
+- **React Query cache persist ลง localStorage** ผ่าน `query-sync-storage-persister` (อายุ 24 ชม., ตัด session query ออกตอน dehydrate)
+- **Timezone** — ไม่มีการบังคับ timezone ฝั่ง server: เก็บ `occurredAt`/`nextDate` เป็น epoch ms และทุกอย่างคิดตาม timezone ของเครื่อง client (`dateInputToTs` ใช้ local noon กันเพี้ยน) — ส่วน `server/_core/bangkokTime.ts` (Asia/Bangkok) ตอนนี้ **ไม่ได้ถูกเรียกใช้จริง** เพราะเหลือแค่จากโค้ดกำพร้า (ดูด้านล่าง)
+- **เรื่องที่ควรรู้ขณะพัฒนา** (ดูรายละเอียดใน [`ARCHITECTURE.md` §6](ARCHITECTURE.md)):
+  - ยังไม่มี `.env.example`
+  - rate limiter ใน `rateLimit.ts` ยังไม่ได้ mount
+  - มีโค้ดกำพร้าจากการถอด Telegram: `pacing.ts`, `reminderParser.ts`, `format.ts`, `bangkokTime.ts`, `NotificationBell.tsx`
+  - alias `@assets/*` ชี้ไป `attached_assets/` ซึ่งไม่มีอยู่จริงใน repo (มีแค่ใน `vite.config.ts` / `tsconfig.json` / `components.json`)
+  - ในโค้ดยังมีคอมเมนต์/ข้อความที่อ้าง Telegram อยู่ (`useLiveSync.ts`, `MetricsView.tsx`, `MoneyFlow.tsx`, `Login.tsx` footer)
+  - ตัวเลือก "การแจ้งเตือน" ในหน้า Settings ยังไม่ persist (คอลัมน์ถูก drop แล้ว)
+  - CORS ตอนนี้อนุญาตทุก origin

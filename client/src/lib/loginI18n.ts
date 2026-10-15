@@ -7,9 +7,7 @@ export type Lang = "th" | "en";
 export type LoginKey =
   | "welcome"
   | "welcomeSub"
-  | "discord"
   | "google"
-  | "demo"
   | "terms1"
   | "terms2";
 
@@ -19,9 +17,7 @@ const STRINGS: Record<LoginKey, { th: string; en: string }> = {
     th: "เข้าสู่ระบบเพื่อเริ่มจัดการเงินของคุณ — ฟรี ไม่จำกัดรายการ",
     en: "Sign in to start managing your money — free, unlimited entries",
   },
-  discord: { th: "เข้าสู่ระบบด้วย Discord", en: "Continue with Discord" },
   google: { th: "เข้าสู่ระบบด้วย Google", en: "Continue with Google" },
-  demo: { th: "ลองใช้ Demo", en: "Try the Demo" },
   terms1: {
     th: "เข้าสู่ระบบถือว่าคุณยอมรับเงื่อนไขการใช้งาน",
     en: "By signing in you agree to the Terms of Service",

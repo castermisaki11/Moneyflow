@@ -85,7 +85,7 @@ createRoot(document.getElementById("root")!).render(
         // auth.me is excluded on purpose: it resolves to `null` (not an
         // error) for a logged-out user, so a "no user" result taken right
         // before a login gets written to localStorage as a successful query.
-        // On the next page load (e.g. right after the Discord OAuth
+        // On the next page load (e.g. right after the Google OAuth
         // redirect back to "/") that stale "logged out" snapshot gets
         // restored and shown before the fresh network check comes back,
         // which bounced people straight back to /login even though the
