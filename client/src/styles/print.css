@@ -1,0 +1,67 @@
+@media print {
+  /* Hide everything except the report */
+  body * {
+    visibility: hidden;
+  }
+
+  .space-y-3,
+  .space-y-3 * {
+    visibility: visible;
+  }
+
+  /* Hide navigation, buttons, and non-print elements */
+  .print\:hidden,
+  nav,
+  header,
+  button:not(.no-print) {
+    display: none !important;
+  }
+
+  /* Clean up background for printing */
+  * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Ensure borders print */
+  .rounded-2xl,
+  .mf-card {
+    border: 1px solid #ddd !important;
+    border-radius: 8px !important;
+    break-inside: avoid;
+  }
+
+  /* Make charts print properly */
+  svg {
+    max-width: 100% !important;
+  }
+
+  /* Page layout */
+  @page {
+    margin: 1cm;
+    size: A4;
+  }
+
+  /* Ensure text is readable */
+  .text-xs {
+    font-size: 10px !important;
+  }
+
+  .text-sm {
+    font-size: 12px !important;
+  }
+
+  .text-base {
+    font-size: 14px !important;
+  }
+
+  .font-bold {
+    font-weight: 700 !important;
+  }
+
+  .font-semibold {
+    font-weight: 600 !important;
+  }
+}

@@ -45,6 +45,7 @@
     "pg": "^8.13.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "recharts": "^3.10.1",
     "sonner": "^2.0.7",
     "superjson": "^1.13.3",
     "tailwind-merge": "^3.3.1",
@@ -77,7 +78,10 @@
   "pnpm": {
     "overrides": {
       "tailwindcss>nanoid": "3.3.7"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "engines": {
     "node": ">=20",

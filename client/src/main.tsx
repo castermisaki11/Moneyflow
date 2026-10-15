@@ -9,6 +9,7 @@ import superjson from "superjson";
 import App from "./App";
 import { initWebVitals, trackApiLatency } from "@/lib/webVitals";
 import "./index.css";
+import "./styles/ui.css";
 
 // Start collecting browser performance signals (LCP/CLS/TTFB/long tasks)
 initWebVitals();
