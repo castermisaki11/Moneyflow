@@ -40,6 +40,9 @@
   - `auth.me` ถูกกันไม่ให้ persist ตั้งใจ (กันค่า "ยังไม่ login" เก่าๆ ดันหน้า login กลับมา)
 - **tRPC client + superjson** — type-safe API, แชร์ types กับ server ตรง (`AppRouter`)
 - **shadcn/ui (new-york) + Tailwind CSS v4** ผ่าน `@tailwindcss/vite`
+  - `client/src/components/ui/index.ts` re-export พวกการ์ด + ปุ่ม (`PrimaryButton`, `OutlineButton`, `EmptyState`)
+  - สไตล์แบ่งไฟล์: `index.css` (Tailwind + ธีม), `styles/ui.css` (import ใน `main.tsx`), `styles/moneyflow.css`, `styles/print.css` (ใช้ตอน export รายงาน)
+- **Recharts** — `views/DashboardCharts.tsx` วาดกราฟในแดชบอร์ด (timeline / แยกตามหมวด / วงกลมสัดส่วน)
 - **Framer Motion** — animation
 - **Real-time** — `useLiveSync` เปิด SSE ไป `/api/events` แล้ว invalidate query ตาม entity ที่ server รายงาน (มี backoff + reconnect เมื่อ tab กลับมา)
 - **Offline** — `client/public/sw.js` (v4): cache-first สำหรับหน้าแอป, และ intercept `transactions.create` ตอน offline → เก็บลง IndexedDB แล้ว flush ด้วย Background Sync

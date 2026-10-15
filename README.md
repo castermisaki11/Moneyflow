@@ -8,7 +8,7 @@
 
 **ข้อมูล**
 - **บันทึกรายรับ–รายจ่าย–ออม** พร้อมหมวดหมู่ (แก้ไข/เพิ่มหมวดเองได้, ซ่อน/กู้คืนหมวดเริ่มต้นได้)
-- **แดชบอร์ด** — ยอดเดือนนี้, ภาพรวมงบประมาณ, รายการประจำที่กำลังจะถึง, เป้าหมายออม
+- **แดชบอร์ด** — ยอดเดือนนี้, ภาพรวมงบประมาณ, รายการประจำที่กำลังจะถึง, เป้าหมายออม + กราฟแนวไทม์ไลน์/แยกตามหมวด/วงกลมสัดส่วน (`DashboardCharts` ด้วย Recharts)
 - **ค้นหา/กรองรายการ** — ค้นข้อความ, กรองประเภท/หมวด, ช่วงวัน (วันนี้/สัปดาห์/เดือน/ทั้งหมด/กำหนดเอง), แบ่งหน้า
 - **งบประมาณรายหมวด** รายวัน/สัปดาห์/เดือน/ปี พร้อมแถบความคืบหน้า (เตือนที่ 80%, แดงเมื่อเกิน)
 - **เป้าหมายออมเงิน** — เพิ่มเงินเข้าเป้า, กำหนด deadline
@@ -28,7 +28,7 @@
 
 | ชั้น | เทคโนโลยี |
 |---|---|
-| Frontend | React 19 + Vite 7, Tailwind CSS v4, shadcn/ui (new-york), Framer Motion, wouter |
+| Frontend | React 19 + Vite 7, Tailwind CSS v4, shadcn/ui (new-york), Recharts, Framer Motion, wouter |
 | State/Data | TanStack Query v5 (+ persistence ลง localStorage), tRPC v11 (superjson) |
 | Backend | Node.js ≥ 20 + Express, tsx (dev) / esbuild (build) |
 | Database | PostgreSQL + Drizzle ORM (`pg` driver, auto-migrate ตอน start server) |
