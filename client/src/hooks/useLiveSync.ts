@@ -15,7 +15,8 @@ const ENTITY_QUERY_KEYS: Record<string, () => unknown[]> = {
 
 /**
  * Keeps the open web app in sync the instant data changes elsewhere — most
- * notably when the Telegram bot adds/edits a transaction. Without this, the
+ * notably when another tab or a server-side writer adds/edits a transaction.
+ * Without this, the
  * page relies on react-query's staleTime/refetchOnWindowFocus and can sit on
  * stale data for up to a minute (or until you switch tabs) after a bot action.
  *

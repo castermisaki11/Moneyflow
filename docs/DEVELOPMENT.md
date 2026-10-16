@@ -16,12 +16,12 @@ pnpm install
 
 ## Environment Variables
 
-ไม่มี `.env.example` ใน repo — สร้างไฟล์ `.env` เอง (อยู่ใน `.gitignore` แล้ว)
+คัดลอก `.env.example` เป็น `.env` แล้วกรอกค่าจริง — `cp .env.example .env` (`.env` อยู่ใน `.gitignore` แล้ว)
 
 | ตัวแปร | จำเป็น | คำอธิบาย |
 |---|---|---|
 | `DATABASE_URL` | ✅ | Connection string ของ PostgreSQL เช่น `postgres://user:pass@host:5432/moneyflow` |
-| `JWT_SECRET` | ✅ | Secret สำหรับ sign JWT (cookie session) — ถ้าไม่ตั้งจะใช้ค่า `"change-me-please"` |
+| `JWT_SECRET` | ✅ | Secret สำหรับ sign JWT (cookie session) — **ไม่ตั้งจะ start server ไม่ได้** (`jwt.ts` throw ตอน import) |
 | `GOOGLE_CLIENT_ID` | ✅ | Google OAuth Client ID |
 | `GOOGLE_CLIENT_SECRET` | ✅ | Google OAuth Client Secret |
 | `GOOGLE_REDIRECT_URI` | ✅ | Callback URL เช่น `http://localhost:3000/api/auth/google/callback` — ต้องตรงกับที่ตั้งใน Google Cloud Console |
@@ -29,6 +29,7 @@ pnpm install
 | `NODE_ENV` | ⬜ | `development` / `production` (set ให้อัตโนมัติโดย scripts) |
 | `OWNER_OPEN_ID` | ⬜ | openId ของเจ้าของ (รูป `google-<user-id>`) → ได้สิทธิ์ admin |
 | `ADMIN_GOOGLE_IDS` | ⬜ | รายชื่อ Google user id ที่ได้สิทธิ์ admin คั่นด้วย `,` เช่น `109...,207...` |
+| `ALLOWED_ORIGINS` | ⬜ | origin เพิ่มเติมที่อนุญาตให้ยิง cross-origin คั่นด้วย `,` (ปกติไม่ต้องตั้ง เพราะ SPA ถูกเสิร์ฟจาก server เดียวกัน) |
 | `VITE_ANALYTICS_ENDPOINT` | ⬜ | ปลายทาง analytics (umami) — ต้อง uncomment `<script>` ใน `client/index.html` ด้วย |
 | `VITE_ANALYTICS_WEBSITE_ID` | ⬜ | Website ID ของ analytics |
 
@@ -89,7 +90,7 @@ Server dev รันที่ `http://localhost:3000` — ทั้ง client �
 
 - `@/*` → `client/src/*`
 - `@shared/*` → `shared/*`
-- `@assets/*` → `attached_assets/*`
+- `@assets/*` → `attached_assets/*` (เหลือแค่ใน `vite.config.ts` — ไม่มีโค้ดที่ไหน import และโฟลเดอร์ไม่มีอยู่จริง)
 - `@/components/ui` → shadcn ui components
 - `@/lib/utils` → utilities (`clsx` + `tailwind-merge`)
 
@@ -97,12 +98,9 @@ Server dev รันที่ `http://localhost:3000` — ทั้ง client �
 
 - **Tailwind CSS ใช้ v4** (ผ่าน `@tailwindcss/vite` plugin) + `tw-animate-css`
 - **React Query cache persist ลง localStorage** ผ่าน `query-sync-storage-persister` (อายุ 24 ชม., ตัด session query ออกตอน dehydrate)
-- **Timezone** — ไม่มีการบังคับ timezone ฝั่ง server: เก็บ `occurredAt`/`nextDate` เป็น epoch ms และทุกอย่างคิดตาม timezone ของเครื่อง client (`dateInputToTs` ใช้ local noon กันเพี้ยน) — ส่วน `server/_core/bangkokTime.ts` (Asia/Bangkok) ตอนนี้ **ไม่ได้ถูกเรียกใช้จริง** เพราะเหลือแค่จากโค้ดกำพร้า (ดูด้านล่าง)
+- **Timezone** — ไม่มีการบังคับ timezone ฝั่ง server: เก็บ `occurredAt`/`nextDate` เป็น epoch ms และทุกอย่างคิดตาม timezone ของเครื่อง client (`dateInputToTs` ใช้ local noon กันเพี้ยน) — ไม่มี module ช่วยแปลง timezone ฝั่ง server (`bangkokTime.ts` ถูกลบไปแล้วพร้อมโค้ดกำพร้าที่ import มัน)
 - **เรื่องที่ควรรู้ขณะพัฒนา** (ดูรายละเอียดใน [`ARCHITECTURE.md` §6](ARCHITECTURE.md)):
-  - ยังไม่มี `.env.example`
-  - rate limiter ใน `rateLimit.ts` ยังไม่ได้ mount
-  - มีโค้ดกำพร้าจากการถอด Telegram: `pacing.ts`, `reminderParser.ts`, `format.ts`, `bangkokTime.ts`, `NotificationBell.tsx`
-  - alias `@assets/*` ชี้ไป `attached_assets/` ซึ่งไม่มีอยู่จริงใน repo (มีแค่ใน `vite.config.ts` / `tsconfig.json` / `components.json`)
-  - ในโค้ดยังมีคอมเมนต์/ข้อความที่อ้าง Telegram อยู่ (`useLiveSync.ts`, `MetricsView.tsx`, `MoneyFlow.tsx`, `Login.tsx` footer)
-  - ตัวเลือก "การแจ้งเตือน" ในหน้า Settings ยังไม่ persist (คอลัมน์ถูก drop แล้ว)
-  - CORS ตอนนี้อนุญาตทุก origin
+  - **Rate limiting mount แล้ว** — `authLimiter` ที่ `/api/auth` (20/15 นาที), `apiLimiter` ที่ `/api/trpc` (300/15 นาที) และ `/api/events` (SSE) ตั้งใจไม่จำกัด
+  - **CORS เป็น allowlist** — origin ที่ host ตรงกับ server + `capacitor://` + localhost/Android emulator + รายการใน `ALLOWED_ORIGINS` เท่านั้น
+  - alias `@assets/*` ยังประกาศใน `vite.config.ts` ชี้ไป `attached_assets/` ที่ไม่มีอยู่จริง และไม่มีโค้ดที่ไหน import
+  - ไม่มี automated test ฝั่ง client (มีแค่ `server/moneyflow.test.ts`)

@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -9,11 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { CATEGORIES, CURRENCIES, type TxType } from "@/lib/money";
 import { trpc } from "@/lib/trpc";
-import { Bell, ChevronRight, Database, Gem, Laptop, Lock, Moon, Plus, Sun, Trash2 } from "lucide-react";
+import { ChevronRight, Database, Gem, Laptop, Lock, Moon, Plus, Sun, Trash2 } from "lucide-react";
 import PinSetupDialog from "@/components/PinSetupDialog";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -21,25 +18,8 @@ import { toast } from "sonner";
 type CustomCats = Record<TxType, string[]>;
 type DeletedDefaults = Record<TxType, string[]>;
 
-interface NotifSettings {
-  budgetAlertEnabled: boolean;
-  budgetAlertThreshold: number; // 0–100
-  recurringReminderEnabled: boolean;
-  recurringReminderDays: number; // days before due
-  goalAlertEnabled: boolean;
-  goalAlertThreshold: number; // 0–100 (% of target reached)
-}
-
 const DEFAULT_CUSTOM: CustomCats = { income: [], expense: [], saving: [] };
 const DEFAULT_DELETED: DeletedDefaults = { income: [], expense: [], saving: [] };
-const DEFAULT_NOTIF: NotifSettings = {
-  budgetAlertEnabled: true,
-  budgetAlertThreshold: 80,
-  recurringReminderEnabled: true,
-  recurringReminderDays: 3,
-  goalAlertEnabled: true,
-  goalAlertThreshold: 100,
-};
 
 function parseCustomCats(json: string | null | undefined): CustomCats {
   if (!json) return DEFAULT_CUSTOM;
@@ -69,16 +49,6 @@ function parseDeletedDefaults(json: string | null | undefined): DeletedDefaults 
   }
 }
 
-function parseNotifSettings(json: string | null | undefined): NotifSettings {
-  if (!json) return DEFAULT_NOTIF;
-  try {
-    const parsed = JSON.parse(json);
-    return { ...DEFAULT_NOTIF, ...parsed };
-  } catch {
-    return DEFAULT_NOTIF;
-  }
-}
-
 const TYPE_LABELS: Record<TxType, string> = {
   income: "รายรับ",
   expense: "รายจ่าย",
@@ -96,20 +66,15 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
   const [currency, setCurrency] = useState<string>("THB");
   const [customCats, setCustomCats] = useState<CustomCats>(DEFAULT_CUSTOM);
   const [deletedDefaults, setDeletedDefaults] = useState<DeletedDefaults>(DEFAULT_DELETED);
-  const [notif, setNotif] = useState<NotifSettings>(DEFAULT_NOTIF);
   const [newCat, setNewCat] = useState<Record<TxType, string>>({ income: "", expense: "", saving: "" });
   const [catTab, setCatTab] = useState<TxType>("expense");
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
 
   useEffect(() => {
     if (cur.data?.currency) setCurrency(cur.data.currency);
     if (cur.data) {
       setCustomCats(parseCustomCats(cur.data.customCategories));
       setDeletedDefaults(parseDeletedDefaults((cur.data as any).deletedDefaultCategories));
-      setNotif(parseNotifSettings((cur.data as any).notificationSettings));
     }
-    if ("Notification" in window) setNotifPermission(Notification.permission);
-    else setNotifPermission("unsupported");
   }, [cur.data]);
 
   const update = trpc.settings.update.useMutation({
@@ -132,10 +97,6 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
       customCategories: JSON.stringify(cats),
       ...(deleted !== undefined ? { deletedDefaultCategories: JSON.stringify(deleted) } : {}),
     });
-  };
-
-  const saveNotif = (n: NotifSettings) => {
-    update.mutate({});
   };
 
   const addCategory = (type: TxType) => {
@@ -166,20 +127,6 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
     const updated = { ...deletedDefaults, [type]: deletedDefaults[type].filter((c) => c !== cat) };
     setDeletedDefaults(updated);
     saveCats(customCats, updated);
-  };
-
-  const requestNotify = async () => {
-    if (!("Notification" in window)) { toast.error("เบราว์เซอร์ไม่รองรับการแจ้งเตือน"); return; }
-    const p = await Notification.requestPermission();
-    setNotifPermission(p);
-    if (p === "granted") toast.success("เปิดการแจ้งเตือนแล้ว");
-    else toast("ยังไม่ได้เปิดสิทธิ์แจ้งเตือน");
-  };
-
-  const updateNotif = <K extends keyof NotifSettings>(key: K, value: NotifSettings[K]) => {
-    const updated = { ...notif, [key]: value };
-    setNotif(updated);
-    saveNotif(updated);
   };
 
   const visibleDefaults = CATEGORIES[catTab].filter((c) => !deletedDefaults[catTab].includes(c));
@@ -247,124 +194,6 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
               {label}
             </button>
           ))}
-        </div>
-      </div>
-
-      {/* Notification Settings — full width */}
-      <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card md:col-span-2">
-        <div className="flex items-center gap-2 mb-1">
-          <Bell className="w-4 h-4" />
-          <div className="text-sm font-semibold">การแจ้งเตือน</div>
-        </div>
-        <div className="text-xs text-muted-foreground mb-4">ตั้งค่าการแจ้งเตือนสำหรับงบประมาณ รายการประจำ และเป้าหมาย</div>
-
-        {/* Permission banner */}
-        {notifPermission !== "granted" && notifPermission !== "unsupported" && (
-          <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 mb-4">
-            <div className="text-xs text-amber-600 dark:text-amber-400">
-              {notifPermission === "denied" ? "การแจ้งเตือนถูกบล็อก — เปิดใน browser settings" : "ยังไม่ได้อนุญาตการแจ้งเตือน"}
-            </div>
-            {notifPermission === "default" && (
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={requestNotify}>อนุญาต</Button>
-            )}
-          </div>
-        )}
-        {notifPermission === "granted" && (
-          <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 mb-4">
-            <Bell className="w-3 h-3" /> เปิดการแจ้งเตือนแล้ว
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Budget alert */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">แจ้งเตือนงบเกิน</Label>
-              <Switch
-                checked={notif.budgetAlertEnabled}
-                onCheckedChange={(v) => updateNotif("budgetAlertEnabled", v)}
-              />
-            </div>
-            {notif.budgetAlertEnabled && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>เตือนเมื่อใช้ถึง</span>
-                  <span className="font-medium text-foreground">{notif.budgetAlertThreshold}%</span>
-                </div>
-                <Slider
-                  min={50}
-                  max={100}
-                  step={5}
-                  value={[notif.budgetAlertThreshold]}
-                  onValueChange={([v]) => updateNotif("budgetAlertThreshold", v)}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>50%</span><span>75%</span><span>100%</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Recurring reminder */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">เตือนรายการประจำ</Label>
-              <Switch
-                checked={notif.recurringReminderEnabled}
-                onCheckedChange={(v) => updateNotif("recurringReminderEnabled", v)}
-              />
-            </div>
-            {notif.recurringReminderEnabled && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>ล่วงหน้า</span>
-                  <span className="font-medium text-foreground">{notif.recurringReminderDays} วัน</span>
-                </div>
-                <Slider
-                  min={1}
-                  max={14}
-                  step={1}
-                  value={[notif.recurringReminderDays]}
-                  onValueChange={([v]) => updateNotif("recurringReminderDays", v)}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>1 วัน</span><span>7 วัน</span><span>14 วัน</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Goal alert */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">แจ้งเตือนเป้าหมาย</Label>
-              <Switch
-                checked={notif.goalAlertEnabled}
-                onCheckedChange={(v) => updateNotif("goalAlertEnabled", v)}
-              />
-            </div>
-            {notif.goalAlertEnabled && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>เตือนเมื่อสะสมถึง</span>
-                  <span className="font-medium text-foreground">{notif.goalAlertThreshold}%</span>
-                </div>
-                <Slider
-                  min={25}
-                  max={100}
-                  step={25}
-                  value={[notif.goalAlertThreshold]}
-                  onValueChange={([v]) => updateNotif("goalAlertThreshold", v)}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>25%</span><span>50%</span><span>75%</span><span>100%</span>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

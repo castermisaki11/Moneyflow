@@ -43,7 +43,7 @@
 # ต้องใช้ Node.js >= 20 และ pnpm >= 10
 pnpm install
 
-# สร้างไฟล์ .env (รายละเอียดตัวแปรทั้งหมดอยู่ใน docs/DEVELOPMENT.md)
+# สร้างไฟล์ .env (มี `.env.example` ให้ copy / รายละเอียดตัวแปรทั้งหมดอยู่ใน docs/DEVELOPMENT.md)
 cat > .env <<'EOF'
 DATABASE_URL=postgres://user:pass@localhost:5432/moneyflow
 JWT_SECRET=เปลี่ยนเป็นสุ่มยาวๆ
@@ -69,7 +69,7 @@ pnpm start
 
 > Database schema ถูก migrate อัตโนมัติทุกครั้งที่ server start — ไม่ต้องรัน migration manual
 >
-> **ไม่มีไฟล์ `.env.example`** ใน repo — คัดลอกบล็อกด้านบนไปใช้แทน
+> มีไฟล์ `.env.example` ใน repo — `cp .env.example .env` แล้วกรอกค่าจริง (บล็อกด้านบนคือตัวอย่าง)
 
 ## 📜 Scripts
 

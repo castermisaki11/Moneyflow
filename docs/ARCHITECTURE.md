@@ -51,7 +51,7 @@
 
 - `@/*` → `client/src/*`
 - `@shared/*` → `shared/*`
-- `@assets/*` → `attached_assets/`
+- `@assets/*` → `attached_assets/` (เหลือแค่ใน `vite.config.ts` — ไม่มีโค้ดที่ไหน import และโฟลเดอร์เป้าหมายไม่มีอยู่จริง)
 
 ## 2. Server
 
@@ -69,8 +69,9 @@
 **หมายเหตุ**
 - มี endpoint สำหรับ OAuth provider เดียวคือ `google` (`OAUTH_PROVIDERS` มีแค่ `google` — ดูจาก `oauthProviders.ts`)
 - **ไม่มี cron/scheduler ในฝั่ง server** — ไม่มี endpoint `cron` จริง และไม่มี `setInterval` ที่ทำงานตามเวลา (มีแค่ ping keep-alive ของ SSE ใน `index.ts`) → รายการประจำ/การแจ้งเตือนจะไม่ถูกประมวลผลอัตโนมัติ ต้องกด `recurring.runNow` เอง
-- `storageProxy.ts` เป็น no-op (ไฟล์ R2 เสิร์ฟผ่าน public URL ตรงๆ)
-- `rateLimit.ts` มี `apiLimiter` / `authLimiter` / `cronLimiter` ระบุไว้ แต่ **ยังไม่ถูก `app.use` ที่ไหน**
+- `rateLimit.ts` — `authLimiter` (20 req/15 นาที) mount ที่ `/api/auth`, `apiLimiter` (300 req/15 นาที) mount ที่ `/api/trpc` และ `/api/events` (SSE) ตั้งใจไม่จำกัด กัน reconnect บนเน็ตไม่เสถียรกินโควตา
+- **CORS เป็น allowlist** — อนุญาตเฉพาะ origin ที่ host ตรงกับ server, `capacitor://`, localhost / Android emulator และรายการใน `ALLOWED_ORIGINS`; origin อื่นถูกปฏิเสธ ทุก request พวกนี้ส่ง `credentials` ถ้า allow-all จะให้เว็บอื่นสวมรอยใช้ session ที่ login อยู่ได้
+- ถ้ารันหลัง reverse proxy (Render/nginx) จะตั้ง `trust proxy = 1` เมื่อ `NODE_ENV !== "development"` เพื่อให้ limiter นับ IP ของลูกค้าจริง ไม่ใช่ IP ของ proxy
 
 ### 2.2 tRPC routers (`server/routers.ts` + `_core/*Router.ts`)
 
@@ -95,7 +96,7 @@ Middleware ระดับ `server/_core/trpc.ts`:
 
 | ไฟล์ | หน้าที่ |
 |---|---|
-| `index.ts` | Entry point — CORS, cookie, SSE, tRPC mount, **`runMigrations()` ก่อน listen**, port จาก `PORT` (default 3000) |
+| `index.ts` | Entry point — CORS allowlist, rate limit, cookie, SSE, tRPC mount, **`runMigrations()` ก่อน listen**, port จาก `PORT` (default 3000) |
 | `oauthProviders.ts` | config ผู้ให้บริการ (ตอนนี้มี `google`) + `getAuthorizeUrl` / `exchangeCodeForToken` / `fetchOAuthUser` |
 | `oauth.ts` | register route OAuth ให้ครบทุก provider ใน `OAUTH_PROVIDERS` (loop) — ปัจจุบันมีแค่ `GET /api/auth/google` + `/callback` |
 | `env.ts` | `ENV` + `isAdminOpenId()` (เช็ค `OWNER_OPEN_ID` และ `ADMIN_<PROVIDER>_IDS`) |
@@ -109,7 +110,7 @@ Middleware ระดับ `server/_core/trpc.ts`:
 | `securityRouter.ts`, `systemRouter.ts` | tRPC sub-router |
 | `dbConnection.ts` | connection เดียวทั้ง process (lazy) |
 | `vite.ts` | dev: Vite middleware / prod: static + cache headers |
-| `bangkokTime.ts`, `pacing.ts`, `reminderParser.ts`, `format.ts` | ตัวช่วยคำนวณเวลา/รูปแบบ — **ตอนนี้ไม่มีที่ไหน import** (เหลือจากการถอด Telegram) |
+| `rateLimit.ts` | `express-rate-limit` — `apiLimiter` / `authLimiter` (mount ใน `index.ts`) |
 
 ## 3. Database (`drizzle/schema.ts` + PostgreSQL)
 
@@ -162,11 +163,6 @@ GET /api/auth/google → sign state → redirect ไป Google
 
 ## 6. งานค้าง / จุดที่ควรรู้
 
-- **rate limiter ยังไม่ได้ mount** — `apiLimiter`/`authLimiter`/`cronLimiter` มีใน `rateLimit.ts` แต่ไม่มี `app.use(...)`
-- **โค้ดกำพร้าจากการถอด Telegram** — `pacing.ts`, `reminderParser.ts`, `format.ts`, `bangkokTime.ts` (ถูก import โดย 2 ไฟล์แรกเท่านั้น ซึ่งไม่มีที่ไหน import → ทั้ง chain ตาย), `NotificationBell.tsx` (ยังไม่มีที่ไหน import), และคอมเมนต์/ข้อความที่ยังอ้าง Telegram ใน `useLiveSync.ts`, `MetricsView.tsx`, `MoneyFlow.tsx` (ไอคอนสลิป), `Login.tsx` (footer)
 - **ตารางที่ถูก drop เพิ่มเติม:** `wishlist` (ฟีเจอร์ถูกถอดออกแล้ว)
-- **หน้า Settings: ตัวเลือกการแจ้งเตือนไม่ persist** — `notificationSettings` ถูก drop ออกจาก DB แล้ว แต่ UI ยังอยู่ และ `saveNotif()` ยิง `update.mutate({})` เปล่าๆ
-- **`MoneyFlow.tsx` ยังอ้าง `/api/attachments/<id>`** แต่ route นี้ถูกลบไปแล้ว (มีแค่ตอน `attachmentId` มีค่า ซึ่งตอนนี้ไม่มีทางเกิด)
-- **`rateLimit.ts` / `storageProxy.ts`** เป็นตัวอย่างโค้ดที่เตรียมไว้แต่ยังไม่ได้ใช้
-- CORS ใน `index.ts` อนุญาตทุก origin (`callback(null, true)`) — ควรจำกัดก่อน deploy สาธารณะ
-- ไม่มี `.env.example` ใน repo
+- **ไม่มี automated test ฝั่ง client** — มีแค่ `server/moneyflow.test.ts` (`pnpm test` = vitest)
+- alias `@assets/*` ยังประกาศอยู่ใน `vite.config.ts` ชี้ไป `attached_assets/` ที่ไม่มีอยู่จริง และไม่มีโค้ดที่ไหน import

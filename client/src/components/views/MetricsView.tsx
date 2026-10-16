@@ -250,7 +250,7 @@ export function MetricsView() {
         )}
         {liveSync.history.length === 0 && (
           <p className="text-xs text-muted-foreground py-2">
-            ยังไม่มี event เข้ามา — ลองเพิ่ม/แก้รายการจากอีกแท็บ หรือผ่าน Telegram bot แล้วดูตรงนี้
+            ยังไม่มี event เข้ามา — ลองเพิ่ม/แก้รายการจากอีกแท็บ แล้วดูตรงนี้
           </p>
         )}
       </div>

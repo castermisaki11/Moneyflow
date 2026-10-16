@@ -122,7 +122,7 @@ export function LoginPage() {
         </div>
 
         <div className="flex items-center justify-center gap-1.5 pt-4 text-[11px] text-slate-500">
-          <span>MoneyFlow — Personal Finance Tracker with Telegram Bot</span>
+          <span>MoneyFlow — Personal Finance Tracker</span>
         </div>
       </section>
     </div>

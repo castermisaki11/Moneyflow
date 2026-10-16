@@ -8,10 +8,10 @@ import { logSyncEvent } from "./syncLog";
  * Why this exists: the web client caches reads (react-query staleTime) and
  * only re-validates on its own mutations, window focus, or TTL expiry. That
  * assumption breaks the moment data changes from *outside* the open tab —
- * e.g. the Telegram bot quick-adding a transaction — so the open web page
+ * e.g. a second tab saving a transaction — so the open web page
  * could sit on stale data for up to a minute. `emitUserEvent` is called
  * right alongside cache invalidation (see cache/index.ts) so any writer,
- * web or bot, notifies all of that user's live connections immediately.
+ * web or API, notifies all of that user's live connections immediately.
  *
  * Single-process only, same caveat as the in-memory cache store: swap for a
  * Redis pub/sub channel if this ever runs multi-instance.
