@@ -2,8 +2,6 @@ import TxFormDialog from "@/components/TxFormDialog";
 import { MonthlyReportView } from "@/components/views/MonthlyReportView";
 import { DataView } from "@/components/views/DataView";
 import { SettingsView } from "@/components/views/SettingsView";
-import { AccountView } from "@/components/views/AccountView";
-import { MetricsView } from "@/components/views/MetricsView";
 import DashboardCharts from "@/components/views/DashboardCharts";
 
 import { Button } from "@/components/ui/button";
@@ -60,7 +58,6 @@ import {
 import { trpc } from "@/lib/trpc";
 
 import {
-  Activity,
   BarChart3,
   CheckCircle2,
   ChevronRight,
@@ -72,7 +69,6 @@ import {
   ListChecks,
   Loader2,
   Pencil,
-  CircleUserRound,
   Plus,
   Repeat,
   Search,
@@ -139,9 +135,7 @@ type Tab =
   | "recurring"
   | "report"
   | "data"
-  | "settings"
-  | "account"
-  | "metrics";
+  | "settings";
 
 export default function MoneyFlowPage() {
   // Register service worker for PWA
@@ -198,11 +192,10 @@ function useRemovingIds() {
 }
 
 function MoneyFlowApp() {
-  // Open a specific tab on first load when reached via a deep link
-  // (e.g. the post-login redirect "/?tab=account"). Defaults to the dashboard.
+  // Deep links can still open any tab directly (e.g. "/?tab=settings").
   const [tab, setTab] = useState<Tab>(() => {
-    const requested = new URLSearchParams(window.location.search).get("tab");
-    return requested === "account" ? "account" : "dashboard";
+    const requested = new URLSearchParams(window.location.search).get("tab") as Tab | null;
+    return requested ?? "dashboard";
   });
   const [addOpen, setAddOpen] = useState(false);
   const [addType, setAddType] = useState<TxType>("expense");
@@ -211,8 +204,6 @@ function MoneyFlowApp() {
   const settings = trpc.settings.get.useQuery();
   const currency = settings.data?.currency || "THB";
   const effectiveCats = useMergedCategories();
-  const me = trpc.auth.me.useQuery();
-  const isAdmin = me.data?.role === "admin";
 
   // Load all data (user-scoped)
   const txs = trpc.transactions.list.useQuery();
@@ -332,12 +323,6 @@ function MoneyFlowApp() {
             { k: "budgets", label: "งบ", icon: <Coins className="w-4 h-4" /> },
             { k: "recurring", label: "รายการประจำ", icon: <Repeat className="w-4 h-4" /> },
             { k: "settings", label: "ตั้งค่า", icon: <Settings className="w-4 h-4" /> },
-            { k: "account", label: "บัญชี", icon: <CircleUserRound className="w-4 h-4" /> },
-            ...(isAdmin
-              ? [
-                  { k: "metrics", label: "วัดผล & ผู้ใช้", icon: <Activity className="w-4 h-4" /> },
-                ]
-              : []),
           ].map((t) => (
 <button
                 role="tab"
@@ -428,8 +413,6 @@ function MoneyFlowApp() {
             />
           )}
           {tab === "settings" && <SettingsView onOpenBackup={() => setTab("data")} />}
-          {tab === "account" && <AccountView />}
-          {tab === "metrics" && isAdmin && <MetricsView />}
         </div>
       </main>
 

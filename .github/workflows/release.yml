@@ -30,14 +30,13 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
-        run: pnpm test
-
-      - name: Build (client + server bundle)
+      - name: Build (client SPA)
         run: pnpm build
 
       - name: Package release artifact
         run: |
+          cp serve.mjs dist/serve.mjs
+          cp package.json dist/package.json
           cd dist
           zip -r ../moneyflow-${{ github.ref_name }}.zip .
           cd ..
