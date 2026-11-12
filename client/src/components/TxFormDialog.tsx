@@ -133,7 +133,6 @@ export default function TxFormDialog({ open, onOpenChange, initialType = "expens
     });
   };
 
-  const pad = (n: number) => String(n);
   const quickAmounts = [20, 50, 100, 200, 500, 1000];
 
 
@@ -152,6 +151,98 @@ export default function TxFormDialog({ open, onOpenChange, initialType = "expens
           </DialogTitle>
         </DialogHeader>
 
+        <div className="space-y-3">
+          {/* ประเภท: รายรับ / รายจ่าย / ออม */}
+          <div className="grid grid-cols-3 gap-2">
+            {(["income", "expense", "saving"] as TxType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                className={`mf-chip rounded-lg border px-2 py-2 text-sm font-medium ${
+                  type === t
+                    ? "bg-primary text-primary-foreground border-transparent"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                {TYPE_LABEL[t]}
+              </button>
+            ))}
+          </div>
+
+          {/* จำนวนเงิน */}
+          <div className="space-y-1.5">
+            <Label>จำนวนเงิน</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
+              autoFocus
+            />
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {quickAmounts.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setAmount(String((Number(amount) || 0) + q))}
+                  className="mf-chip rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground"
+                >
+                  +{q.toLocaleString()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* หมวดหมู่ */}
+          <div className="space-y-1.5">
+            <Label>หมวดหมู่</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATS[type].map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* โน้ต */}
+          <div className="space-y-1.5">
+            <Label>โน้ต (ไม่บังคับ)</Label>
+            <Textarea
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="เช่น ข้าวกลางวัน"
+              className="resize-none"
+            />
+          </div>
+
+          {/* วันที่ */}
+          <div className="space-y-1.5">
+            <Label>วันที่</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <OutlineButton type="button" onClick={() => onOpenChange(false)}>
+            ยกเลิก
+          </OutlineButton>
+          <PrimaryButton type="button" onClick={submit} disabled={create.isPending}>
+            {create.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "บันทึก"}
+          </PrimaryButton>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
