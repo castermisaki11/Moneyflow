@@ -1,14 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useTheme } from "@/contexts/ThemeContext";
-import { CATEGORIES, CURRENCIES, type TxType } from "@/lib/money";
+import { CATEGORIES, type TxType } from "@/lib/money";
 import { trpc } from "@/lib/trpc";
 import { ChevronRight, Database, Gem, Laptop, Lock, Moon, Plus, Sun, Trash2 } from "lucide-react";
 import PinSetupDialog from "@/components/PinSetupDialog";
@@ -63,14 +56,12 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
   const pinStatus = trpc.security.status.useQuery();
   const [pinDialog, setPinDialog] = useState<"set" | "disable" | null>(null);
 
-  const [currency, setCurrency] = useState<string>("THB");
   const [customCats, setCustomCats] = useState<CustomCats>(DEFAULT_CUSTOM);
   const [deletedDefaults, setDeletedDefaults] = useState<DeletedDefaults>(DEFAULT_DELETED);
   const [newCat, setNewCat] = useState<Record<TxType, string>>({ income: "", expense: "", saving: "" });
   const [catTab, setCatTab] = useState<TxType>("expense");
 
   useEffect(() => {
-    if (cur.data?.currency) setCurrency(cur.data.currency);
     if (cur.data) {
       setCustomCats(parseCustomCats(cur.data.customCategories));
       setDeletedDefaults(parseDeletedDefaults((cur.data as any).deletedDefaultCategories));
@@ -149,23 +140,6 @@ export function SettingsView({ onOpenBackup }: { onOpenBackup?: () => void }) {
         </span>
         <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
       </button>
-
-      {/* Currency */}
-      <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">
-        <div className="text-sm font-semibold mb-2">สกุลเงิน</div>
-        <div className="text-xs text-muted-foreground mb-3">ใช้สำหรับแสดงผลทั้งแอป</div>
-        <div className="flex gap-2">
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {CURRENCIES.map((c) => (
-                <SelectItem key={c.code} value={c.code}>{c.code} — {c.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={() => update.mutate({ currency })} disabled={update.isPending || currency === cur.data?.currency}>บันทึก</Button>
-        </div>
-      </div>
 
       {/* Theme */}
       <div className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card">

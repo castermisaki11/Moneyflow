@@ -2,7 +2,6 @@ import TxFormDialog from "@/components/TxFormDialog";
 import { MonthlyReportView } from "@/components/views/MonthlyReportView";
 import { DataView } from "@/components/views/DataView";
 import { SettingsView } from "@/components/views/SettingsView";
-import DashboardCharts from "@/components/views/DashboardCharts";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +32,6 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { ThemeMenu } from "@/components/ThemeMenu";
 import {
   CATEGORIES,
-  CURRENCIES,
   Freq,
   Period,
   Priority,
@@ -58,7 +56,6 @@ import {
 import { trpc } from "@/lib/trpc";
 
 import {
-  BarChart3,
   CheckCircle2,
   ChevronRight,
   Circle,
@@ -129,7 +126,6 @@ async function verifyDeleteSucceeded<T extends { id: number }>(
 }
 
 type Tab =
-  | "dashboard"
   | "transactions"
   | "budgets"
   | "recurring"
@@ -195,14 +191,15 @@ function MoneyFlowApp() {
   // Deep links can still open any tab directly (e.g. "/?tab=settings").
   const [tab, setTab] = useState<Tab>(() => {
     const requested = new URLSearchParams(window.location.search).get("tab") as Tab | null;
-    return requested ?? "dashboard";
+    const valid: Tab[] = ["transactions", "budgets", "recurring", "report", "data", "settings"];
+    return requested && valid.includes(requested) ? requested : "transactions";
   });
   const [addOpen, setAddOpen] = useState(false);
   const [addType, setAddType] = useState<TxType>("expense");
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
 
   const settings = trpc.settings.get.useQuery();
-  const currency = settings.data?.currency || "THB";
+  const currency = "THB";
   const effectiveCats = useMergedCategories();
 
   // Load all data (user-scoped)
@@ -299,7 +296,7 @@ function MoneyFlowApp() {
             value={totalBalance}
             currency={currency}
             icon={<Wallet className="w-4 h-4" />}
-            onClick={() => setTab("dashboard")}
+            onClick={() => setTab("transactions")}
             hint={
               carryover !== 0
                 ? `ยกมา ${formatCurrency(carryover, currency)}`
@@ -318,10 +315,10 @@ function MoneyFlowApp() {
       <nav className="relative z-10 mt-3 sm:mt-4 px-3 sm:px-6 max-w-5xl mx-auto">
         <div className="flex gap-1.5 overflow-x-auto mf-no-scrollbar py-1 -mx-1 px-1" role="tablist" aria-label="เมนูหลัก">
           {[
-            { k: "dashboard", label: "แดชบอร์ด", icon: <BarChart3 className="w-4 h-4" /> },
             { k: "transactions", label: "รายการ", icon: <ListChecks className="w-4 h-4" /> },
             { k: "budgets", label: "งบ", icon: <Coins className="w-4 h-4" /> },
             { k: "recurring", label: "รายการประจำ", icon: <Repeat className="w-4 h-4" /> },
+            { k: "report", label: "รายงาน", icon: <FileBarChart className="w-4 h-4" /> },
             { k: "settings", label: "ตั้งค่า", icon: <Settings className="w-4 h-4" /> },
           ].map((t) => (
 <button
@@ -347,34 +344,6 @@ function MoneyFlowApp() {
       {/* Content */}
       <main role="tabpanel" id="tab-panel" className="relative z-10 mt-3 sm:mt-4 px-3 sm:px-6 max-w-5xl mx-auto">
         <div key={tab} className="mf-fade-in mf-view-enter">
-          {tab === "dashboard" && (
-            <DashboardView
-              currency={currency}
-              transactions={txs.data || []}
-              goals={goals.data || []}
-              budgets={budgets.data || []}
-              recurring={recurring.data || []}
-              onAdd={openAdd}
-              onNavigate={(t) => setTab(t)}
-              sections={{
-                budgets: {
-                  loading: budgets.isLoading,
-                  error: !!budgets.error && !budgets.data,
-                  retry: () => budgets.refetch(),
-                },
-                recurring: {
-                  loading: recurring.isLoading,
-                  error: !!recurring.error && !recurring.data,
-                  retry: () => recurring.refetch(),
-                },
-                goals: {
-                  loading: goals.isLoading,
-                  error: !!goals.error && !goals.data,
-                  retry: () => goals.refetch(),
-                },
-              }}
-            />
-          )}
           {tab === "transactions"
             ? txs.data
               ? <TransactionsView currency={currency} transactions={txs.data} onAdd={openAdd} />
@@ -524,273 +493,6 @@ function AnimatedBar({ pct, background }: { pct: number; background: string }) {
       className="mf-progress h-full rounded-full transition-[width] duration-700"
       style={{ width: `${animatedPct}%`, background }}
     />
-  );
-}
-
-/* ----------------- DASHBOARD ----------------- */
-
-/** Per-section async state for the dashboard cards */
-interface SectionState {
-  loading: boolean;
-  error: boolean;
-  retry: () => void;
-}
-
-function DashboardView({
-  currency,
-  transactions,
-  goals,
-  budgets,
-  recurring,
-  onAdd,
-  onNavigate,
-  sections,
-}: {
-  currency: string;
-  transactions: any[];
-  goals: any[];
-  budgets: any[];
-  recurring: any[];
-  onAdd: (t: TxType) => void;
-  onNavigate: (tab: Tab) => void;
-  sections?: {
-    budgets?: SectionState;
-    recurring?: SectionState;
-    goals?: SectionState;
-  };
-}) {
-  const mtdExpense = transactions
-    .filter((t) => t.type === "expense" && isSameMonth(Number(t.occurredAt)))
-    .reduce((a, b) => a + toNumber(b.amount), 0);
-
-  const _now = Date.now();
-  const _d = new Date(); _d.setHours(0, 0, 0, 0);
-  const _dayStart = _d.getTime(); const _dayEnd = _dayStart + 86399999;
-  const _w = new Date(); _w.setDate(_w.getDate() - _w.getDay()); _w.setHours(0, 0, 0, 0);
-  const _weekStart = _w.getTime(); const _weekEnd = _weekStart + 7 * 86400000 - 1;
-  const _monthStart = startOfMonthTs(_now); const _monthEnd = endOfMonthTs(_now);
-  const _yearStart = startOfYearTs(_now); const _yearEnd = endOfYearTs(_now);
-
-  const topBudgets = budgets
-    .filter((b) => b.period === "monthly" || b.period === "daily" || b.period === "weekly" || b.period === "yearly")
-    .slice(0, 3)
-    .map((b) => {
-      const [from, to] =
-        b.period === "daily" ? [_dayStart, _dayEnd] :
-        b.period === "weekly" ? [_weekStart, _weekEnd] :
-        b.period === "yearly" ? [_yearStart, _yearEnd] :
-        [_monthStart, _monthEnd];
-      const periodLabel =
-        b.period === "daily" ? "วันนี้" :
-        b.period === "weekly" ? "สัปดาห์นี้" :
-        b.period === "yearly" ? "ปีนี้" :
-        "เดือนนี้";
-      const used = transactions
-        .filter(
-          (t) =>
-            t.type === "expense" &&
-            t.category === b.category &&
-            Number(t.occurredAt) >= from &&
-            Number(t.occurredAt) <= to,
-        )
-        .reduce((a, c) => a + toNumber(c.amount), 0);
-      return { ...b, used, limit: toNumber(b.limitAmount), periodLabel };
-    });
-
-  return (
-    <div className="grid grid-cols-1 gap-4">
-      <DashboardCharts transactions={transactions} currency={currency} />
-
-      <div
-        onClick={() => onNavigate("budgets")}
-        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-semibold">ภาพรวมงบประมาณ</div>
-          <Coins className="w-4 h-4 text-muted-foreground" />
-        </div>
-        <div className="text-xs text-muted-foreground mb-3">
-          รายจ่ายเดือนนี้ทั้งหมด: <span className="font-medium text-foreground"><AnimatedCurrency value={mtdExpense} currency={currency} colorPulse={false} /></span>
-        </div>
-        <div className="mt-1 space-y-3">
-          {sections?.budgets?.error ? (
-            <LoadError onRetry={sections.budgets.retry} />
-          ) : sections?.budgets?.loading ? (
-            <SkeletonBars bars={3} />
-          ) : topBudgets.length === 0 ? (
-            <div className="text-xs text-muted-foreground">
-              ยังไม่ได้ตั้งงบ — ลองไปที่แท็บ "งบ" เพื่อตั้งเพดานรายจ่าย
-            </div>
-          ) : (
-            topBudgets.map((b) => {
-              const pct = b.limit > 0 ? Math.min(100, (b.used / b.limit) * 100) : 0;
-              const over = b.used > b.limit;
-              const warn = !over && pct >= 80;
-              return (
-                <div key={b.id}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="truncate">{b.category}</span>
-                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                        {b.periodLabel}
-                      </span>
-                    </div>
-                    <span className={over ? "text-rose-500" : warn ? "text-amber-500" : "text-muted-foreground"}>
-                      <AnimatedCurrency value={b.used} currency={currency} colorPulse={false} /> / {formatCurrency(b.limit, currency)}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <AnimatedBar
-                      pct={pct}
-                      background={
-                        over
-                          ? "linear-gradient(90deg,#ef4444,#f97316)"
-                          : warn
-                          ? "linear-gradient(90deg,#f59e0b,#f97316)"
-                          : "linear-gradient(90deg,#6366f1,#a855f7)"
-                      }
-                    />
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Monthly report — compact launcher tile */}
-      <div
-        onClick={() => onNavigate("report")}
-        className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 backdrop-blur-md px-3 py-2.5 mf-card cursor-pointer transition-colors hover:bg-card hover:border-border active:scale-[0.99]"
-      >
-        <span className="w-8 h-8 shrink-0 rounded-lg bg-primary/10 text-primary grid place-items-center">
-          <FileBarChart className="w-4 h-4" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs font-semibold">รายงานรายเดือน</span>
-          <span className="block text-[11px] text-muted-foreground">สรุปยอด + กราฟแยกตามหมวด</span>
-        </span>
-        <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
-      </div>
-
-      {/* Recurring */}
-      <div
-        onClick={() => onNavigate("recurring")}
-        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-semibold">รายการประจำที่กำลังจะถึง</div>
-          <Repeat className="w-4 h-4 text-muted-foreground" />
-        </div>
-        {sections?.recurring?.error ? (
-          <LoadError onRetry={sections.recurring.retry} />
-        ) : sections?.recurring?.loading ? (
-          <SkeletonRows rows={4} rowClass="h-9" />
-        ) : recurring.length === 0 ? (
-          <div className="text-xs text-muted-foreground">ยังไม่มีรายการประจำ</div>
-        ) : (
-          <ul className="space-y-2">
-            {[...recurring]
-              .sort((a, b) => Number(a.nextDate) - Number(b.nextDate))
-              .slice(0, 5)
-              .map((r) => {
-                const daysLeft = Math.ceil((Number(r.nextDate) - Date.now()) / 86400000);
-                const isToday = daysLeft <= 0;
-                const isSoon = daysLeft <= 3 && daysLeft > 0;
-                const typeColor =
-                  r.type === "income" ? "text-emerald-500" : r.type === "expense" ? "text-rose-500" : "text-sky-500";
-                const freqLabel: Record<string, string> = {
-                  daily: "ทุกวัน", weekly: "ทุกสัปดาห์", monthly: "ทุกเดือน", yearly: "ทุกปี",
-                };
-                return (
-                  <li key={r.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 text-xs font-medium truncate">
-                        <span className="truncate">{r.category || r.note || freqLabel[r.freq] || r.freq}</span>
-                        <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                          {freqLabel[r.freq] || r.freq}
-                        </span>
-                      </div>
-                      <div className={`text-[11px] mt-0.5 ${isToday ? "text-rose-500 font-semibold" : isSoon ? "text-amber-500" : "text-muted-foreground"}`}>
-                        {isToday ? "ครบกำหนดวันนี้" : daysLeft === 1 ? "พรุ่งนี้" : `อีก ${daysLeft} วัน`}
-                      </div>
-                    </div>
-                    <div className={`text-sm font-bold tabular-nums shrink-0 ${typeColor}`}>
-                      {r.type === "income" ? "+" : "-"}{formatCurrency(toNumber(r.amount), currency)}
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-        )}
-      </div>
-
-      {/* Goals */}
-      <div
-        onClick={() => onNavigate("recurring")}
-        className="rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-4 mf-card cursor-pointer transition-colors hover:bg-card active:scale-[0.99]"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-semibold">เป้าหมายการออม</div>
-          <Target className="w-4 h-4 text-muted-foreground" />
-        </div>
-        {sections?.goals?.error ? (
-          <LoadError onRetry={sections.goals.retry} />
-        ) : sections?.goals?.loading ? (
-          <SkeletonBars bars={3} />
-        ) : goals.length === 0 ? (
-          <div className="text-xs text-muted-foreground">ยังไม่ได้ตั้งเป้าหมาย</div>
-        ) : (
-          <ul className="space-y-3">
-            {[...goals]
-              .sort((a, b) => toNumber(b.savedAmount) / toNumber(b.targetAmount) - toNumber(a.savedAmount) / toNumber(a.targetAmount))
-              .slice(0, 4)
-              .map((g) => {
-                const saved = toNumber(g.savedAmount);
-                const target = toNumber(g.targetAmount);
-                const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
-                const done = saved >= target;
-                const daysLeft = g.deadline
-                  ? Math.ceil((Number(g.deadline) - Date.now()) / 86400000)
-                  : null;
-                return (
-                  <li key={g.id}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-medium truncate flex items-center gap-1">
-                        {g.emoji && <span>{g.emoji}</span>}
-                        <span className="truncate">{g.name}</span>
-                      </span>
-                      <span className={done ? "text-emerald-500 font-semibold" : "text-muted-foreground"}>
-                        {done ? "✓ สำเร็จ" : `${Math.round(pct)}%`}
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <AnimatedBar
-                        pct={pct}
-                        background={
-                          done
-                            ? "linear-gradient(90deg,#22c55e,#16a34a)"
-                            : "linear-gradient(90deg,#f59e0b,#f97316)"
-                        }
-                      />
-                    </div>
-                    <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
-                      <span>{formatCurrency(saved, currency)} / {formatCurrency(target, currency)}</span>
-                      {daysLeft !== null && (
-                        <span className={daysLeft < 0 ? "text-rose-500" : daysLeft <= 7 ? "text-amber-500" : ""}>
-                          {daysLeft < 0 ? `เกินกำหนด ${Math.abs(daysLeft)} วัน` : daysLeft === 0 ? "วันนี้" : `อีก ${daysLeft} วัน`}
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-        )}
-      </div>
-
-
-    </div>
   );
 }
 

@@ -36,19 +36,6 @@ export const TYPE_LABEL: Record<TxType, string> = {
   saving: "ออม",
 };
 
-export const CURRENCIES = [
-  { code: "THB", label: "฿ บาท" },
-  { code: "USD", label: "$ ดอลลาร์" },
-  { code: "EUR", label: "€ ยูโร" },
-  { code: "GBP", label: "£ ปอนด์" },
-  { code: "JPY", label: "¥ เยน" },
-  { code: "CNY", label: "¥ หยวน" },
-  { code: "KRW", label: "₩ วอน" },
-  { code: "SGD", label: "S$ สิงคโปร์ดอลลาร์" },
-  { code: "MYR", label: "RM ริงกิต" },
-  { code: "VND", label: "₫ ด่อง" },
-];
-
 export function formatCurrency(amount: number | string | null | undefined, currency = "THB") {
   const n = typeof amount === "string" ? Number(amount) : amount ?? 0;
   try {
