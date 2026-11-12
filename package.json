@@ -1,6 +1,6 @@
 {
   "name": "@workspace/moneyflow",
-  "version": "13.0.0",
+  "version": "13.1.0",
   "type": "module",
   "license": "MIT",
   "description": "มั้งเงิน — local-first personal finance tracker (no server database)",
